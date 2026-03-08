@@ -21,7 +21,10 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 from dotenv import load_dotenv
+import boto3
+from boto3.dynamodb.conditions import Key
 import google.generativeai as genai
+from mangum import Mangum
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -81,34 +84,58 @@ def get_next_api_key() -> str:
     return key
 
 
-# ── In-Memory Session Storage ───────────────────────────────────
-# Stores conversation history: { session_id: [messages] }
-session_storage: dict[str, list[dict]] = {}
+# ── DynamoDB Session Storage ─────────────────────────────────────
+DYNAMO_TABLE_NAME = os.getenv("DYNAMO_TABLE_NAME", "newton_ai_sessions")
+try:
+    dynamodb = boto3.resource("dynamodb", region_name=os.getenv("AWS_REGION", "us-east-1"))
+    sessions_table = dynamodb.Table(DYNAMO_TABLE_NAME)
+    logger.info(f"✓ Connected to DynamoDB table: {DYNAMO_TABLE_NAME}")
+except Exception as e:
+    logger.error(f"❌ DynamoDB init failed: {e}")
+    sessions_table = None
 
 
 def save_message(session_id: str, role: str, content: str):
-    """Save message to in-memory session storage."""
-    if session_id not in session_storage:
-        session_storage[session_id] = []
-    session_storage[session_id].append({
-        "role": role,
-        "content": content,
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    })
-    # Keep only last 10 messages per session
-    session_storage[session_id] = session_storage[session_id][-10:]
+    """Save message to DynamoDB."""
+    if sessions_table is None:
+        logger.warning("DynamoDB table not available, skipping save")
+        return
+    ts = datetime.now(timezone.utc).isoformat()
+    try:
+        sessions_table.put_item(
+            Item={
+                "session_id": session_id,
+                "timestamp": ts,
+                "role": role,
+                "content": content,
+            }
+        )
+    except Exception as e:
+        logger.error(f"DynamoDB put_item failed: {e}")
 
 
 def get_last_n_messages(session_id: str, n: int = 5) -> list:
-    """Get last N messages from session storage."""
-    if session_id not in session_storage:
+    """Query DynamoDB for the last N messages and format for Gemini."""
+    if sessions_table is None:
+        logger.warning("DynamoDB table not available, returning empty history")
         return []
-    messages = session_storage[session_id][-n:]
-    # Convert to Gemini format
-    return [
-        {"role": "user" if msg["role"] == "user" else "model", "parts": [msg["content"]]}
-        for msg in messages
-    ]
+    try:
+        response = sessions_table.query(
+            KeyConditionExpression=Key("session_id").eq(session_id),
+            ScanIndexForward=False,  # newest first
+            Limit=n,
+        )
+        items = response.get("Items", [])
+        # Reverse so they are chronological (oldest → newest)
+        items.reverse()
+        # Convert to Gemini chat format
+        return [
+            {"role": "user" if item["role"] == "user" else "model", "parts": [item["content"]]}
+            for item in items
+        ]
+    except Exception as e:
+        logger.error(f"DynamoDB query failed: {e}")
+        return []
 
 
 @app.on_event("startup")
@@ -314,3 +341,6 @@ async def health():
         "model": "gemini-3.1-flash-lite-preview",
         "api_keys_loaded": len(GEMINI_API_KEYS)
     }
+
+# ── Mangum handler for AWS Lambda ────────────────────────────────
+handler = Mangum(app)

@@ -1,10 +1,10 @@
 """
-NewtonAI — Nova Pro Physics Eval Suite
+NewtonAI — Gemini Physics Eval Suite
 ======================================
 Tests whether the model UNDERSTANDS physics correctly, not just whether
 the JSON is structurally valid.
 
-Uses LLM-as-judge: a second Nova Pro call grades the first Nova Pro's output.
+Uses LLM-as-judge: a second Gemini call grades the first Gemini output.
 
 Run:
     python eval_claude_physics.py              # run full suite
@@ -14,10 +14,14 @@ Run:
 
 import json
 import time
+import os
 import argparse
-import boto3
 from datetime import datetime
 from typing import Any
+from dotenv import load_dotenv
+import google.generativeai as genai
+
+load_dotenv()
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -211,7 +215,7 @@ EVAL_CASES = [
         "min_objects": 2,
         "physics_check": (
             "A pendulum has NO electromagnetic forces. "
-            "Claude should not add coulomb, lorentz, or radiation forces to a pendulum. "
+            "The model should not add coulomb, lorentz, or radiation forces to a pendulum. "
             "It should not add drag unless the prompt says 'in air' or 'with damping'. "
             "Keep it simple: gravity + rigid constraint."
         ),
@@ -226,7 +230,7 @@ EVAL_CASES = [
         "min_objects": 2,
         "physics_check": (
             "A bouncing ball should be SIMPLE: one ball, one floor, gravity, restitution. "
-            "Nova Pro should not over-engineer this with multiple forces, complex joints, "
+            "The model should not over-engineer this with multiple forces, complex joints, "
             "or unnecessary objects. Max 3 objects total. "
             "Restitution should be between 0.5 and 0.95 for visible bouncing."
         ),
@@ -272,43 +276,39 @@ A missing force that changes the qualitative behavior is a FAIL.
 Wrong parameter scale (e.g. stiffness=1 for a rigid rod) is a FAIL."""
 
 
-def call_bedrock(prompt: str, system: str, model: str = "amazon.nova-pro-v1:0") -> str:
-    client = boto3.client("bedrock-runtime", region_name="us-east-1")
-    response = client.invoke_model(
-        modelId=model,
-        body=json.dumps({
-            "system": [{"text": system}],
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [{"text": prompt}]
-                }
-            ],
-            "inferenceConfig": {
-                "max_new_tokens": 8192
-            }
-        }),
+def call_gemini(prompt: str, system: str) -> str:
+    api_key = os.getenv("GEMINI_API_KEY_1")
+    if not api_key:
+        raise ValueError("GEMINI_API_KEY_1 not configured in .env")
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name="gemini-3.1-flash-lite-preview",
+        generation_config={
+            "temperature": 0.1,
+            "max_output_tokens": 8192,
+        },
+        system_instruction=system
     )
-    result = json.loads(response["body"].read())
-    return result["output"]["message"]["content"][0]["text"].strip()
+    response = model.generate_content(prompt)
+    return response.text.strip()
 
 
 def generate_simulation(prompt: str) -> tuple[dict | None, str]:
-    """Call Nova Pro to generate a simulation payload."""
+    """Call Gemini to generate a simulation payload."""
     try:
         import re
-        text = call_bedrock(prompt, GENERATION_SYSTEM_PROMPT)
+        text = call_gemini(prompt, GENERATION_SYSTEM_PROMPT)
         text = re.sub(r'^```[a-z]*\n?', '', text)
         text = re.sub(r'\n?```$', '', text)
         return json.loads(text), text
     except json.JSONDecodeError as e:
         return None, f"JSON_PARSE_ERROR: {e}"
     except Exception as e:
-        return None, f"BEDROCK_ERROR: {e}"
+        return None, f"GEMINI_ERROR: {e}"
 
 
 def judge_simulation(prompt: str, payload: dict, physics_check: str) -> dict:
-    """Call judge Nova Pro to evaluate physics correctness."""
+    """Call judge Gemini to evaluate physics correctness."""
     import re
     judge_prompt = f"""
 STUDENT PROMPT: "{prompt}"
@@ -322,7 +322,7 @@ AI-GENERATED PAYLOAD:
 Grade this simulation. Does it correctly model the physics described in the criteria?
 """
     try:
-        text = call_bedrock(judge_prompt, JUDGE_SYSTEM_PROMPT)
+        text = call_gemini(judge_prompt, JUDGE_SYSTEM_PROMPT)
         text = re.sub(r'^```[a-z]*\n?', '', text)
         text = re.sub(r'\n?```$', '', text)
         return json.loads(text)
@@ -408,7 +408,7 @@ def run_eval_case(case: dict) -> dict:
 def run_eval_suite(cases: list[dict], save: bool = False) -> dict:
     """Run full eval suite. Returns summary."""
     print("\n" + "═" * 60)
-    print("NewtonAI — Nova Pro Physics Eval Suite")
+    print("NewtonAI — Gemini Physics Eval Suite")
     print(f"Running {len(cases)} eval cases...")
     print("═" * 60)
 

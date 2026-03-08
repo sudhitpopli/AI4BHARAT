@@ -1,6 +1,6 @@
-"""System prompt for Amazon Nova Pro via AWS Bedrock.
+"""System prompt for the NewtonAI physics engine.
 
-This is the exact system prompt injected into every Bedrock invocation.
+This is the exact system prompt injected into every Gemini invocation.
 It constrains the model to output ONLY valid Mode 1 JSON matching PhysicsSchema.
 """
 

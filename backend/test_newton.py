@@ -3,24 +3,28 @@ NewtonAI — Complete Test Harness
 =================================
 Tests three things separately:
   1. Schema validation  — does the JSON structurally conform?
-  2. Claude reliability — does Claude fill the schema correctly across N prompts?
+  2. Gemini reliability — does Gemini fill the schema correctly across N prompts?
   3. Renderer contract  — does the validated JSON actually render without errors?
 
 Run:
-  pip install pytest boto3 pydantic py-expression-eval --break-system-packages
+  pip install pytest pydantic py-expression-eval google-generativeai python-dotenv
   pytest test_newton.py -v --tb=short
-  pytest test_newton.py -v -k "test_claude" --runs=20   # stress test Claude
+  pytest test_newton.py -v -k "test_gemini" --runs=20   # stress test Gemini
 """
 
 import json
 import math
 import re
+import os
 import time
 import pytest
-import boto3
+from dotenv import load_dotenv
+import google.generativeai as genai
 from typing import Any
 from py_expression_eval import Parser
 from pydantic import BaseModel, ValidationError
+
+load_dotenv()
 
 # ═══════════════════════════════════════════════════════════════════
 # 1. MINIMAL PYDANTIC MODELS
@@ -603,26 +607,22 @@ First character must be { last must be }.
 Fill the NewtonAI simulation schema for the given prompt."""
 
 def call_llm(prompt: str, system: str = SYSTEM_PROMPT) -> tuple[dict | None, str]:
-    """Call Amazon Nova Pro via Bedrock. Returns (parsed_dict, raw_text)."""
-    client = boto3.client("bedrock-runtime", region_name="us-east-1")
+    """Call Gemini. Returns (parsed_dict, raw_text)."""
+    api_key = os.getenv("GEMINI_API_KEY_1")
+    if not api_key:
+        return None, "GEMINI_ERROR: GEMINI_API_KEY_1 not configured in .env"
     try:
-        response = client.invoke_model(
-            modelId="amazon.nova-pro-v1:0",
-            body=json.dumps({
-                "system": [{"text": system}],
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [{"text": prompt}]
-                    }
-                ],
-                "inferenceConfig": {
-                    "max_new_tokens": 8192
-                }
-            }),
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            model_name="gemini-3.1-flash-lite-preview",
+            generation_config={
+                "temperature": 0.1,
+                "max_output_tokens": 8192,
+            },
+            system_instruction=system
         )
-        raw = json.loads(response["body"].read())
-        text = raw["output"]["message"]["content"][0]["text"].strip()
+        response = model.generate_content(prompt)
+        text = response.text.strip()
         # Strip any accidental markdown fences
         text = re.sub(r'^```[a-z]*\n?', '', text)
         text = re.sub(r'\n?```$', '', text)
@@ -631,7 +631,7 @@ def call_llm(prompt: str, system: str = SYSTEM_PROMPT) -> tuple[dict | None, str
         except json.JSONDecodeError as e:
             return None, f"JSON_PARSE_ERROR: {e}\nRaw: {text[:500]}"
     except Exception as e:
-        return None, f"BEDROCK_ERROR: {e}"
+        return None, f"GEMINI_ERROR: {e}"
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -805,7 +805,7 @@ BROKEN_EQ_PAYLOAD = {
 # ── Test classes ─────────────────────────────────────────────────
 
 class TestSchemaValidation:
-    """Tests for static payload validation — no Bedrock calls."""
+    """Tests for static payload validation — no Gemini calls."""
 
     def test_valid_mode1_passes(self):
         result = validate_payload(VALID_MODE1_PAYLOAD)
@@ -889,10 +889,10 @@ class TestSchemaValidation:
         assert isinstance(result["physics_warnings"], list)
 
 
-class TestNovaProReliability:
+class TestGeminiReliability:
     """
-    Tests Nova Pro's JSON generation reliability.
-    These call Bedrock — skip with pytest -k "not test_nova" if no AWS credentials.
+    Tests Gemini's JSON generation reliability.
+    These call Gemini API — skip with pytest -k "not test_gemini" if no API key.
     """
 
     PROMPTS_MODE1 = [
@@ -952,37 +952,37 @@ class TestNovaProReliability:
         return results
 
     @pytest.mark.parametrize("prompt", PROMPTS_MODE1)
-    def test_nova_mode1_reliability(self, prompt):
-        """Nova Pro should pass validation >= 80% of the time on standard Mode 1 prompts."""
+    def test_gemini_mode1_reliability(self, prompt):
+        """Gemini should pass validation >= 80% of the time on standard Mode 1 prompts."""
         result = self._run_prompt_n_times(prompt, n=5)
         assert result["pass_rate"] >= 0.8, (
-            f"Claude pass rate {result['pass_rate']*100:.0f}% < 80% for:\n"
+            f"Gemini pass rate {result['pass_rate']*100:.0f}% < 80% for:\n"
             f"  Prompt: '{prompt}'\n"
             f"  Errors seen: {result['errors_seen']}"
         )
 
     @pytest.mark.parametrize("prompt", PROMPTS_MODE2)
-    def test_nova_mode2_reliability(self, prompt):
-        """Nova Pro should pass validation >= 70% of the time on Mode 2 prompts."""
+    def test_gemini_mode2_reliability(self, prompt):
+        """Gemini should pass validation >= 70% of the time on Mode 2 prompts."""
         result = self._run_prompt_n_times(prompt, n=5)
         assert result["pass_rate"] >= 0.7, (
-            f"Claude pass rate {result['pass_rate']*100:.0f}% < 70% for:\n"
+            f"Gemini pass rate {result['pass_rate']*100:.0f}% < 70% for:\n"
             f"  Prompt: '{prompt}'\n"
             f"  Errors: {result['errors_seen']}"
         )
 
     @pytest.mark.parametrize("prompt", PROMPTS_EDGE)
-    def test_nova_edge_cases_dont_crash(self, prompt):
+    def test_gemini_edge_cases_dont_crash(self, prompt):
         """Edge case prompts should not produce completely unparseable output."""
         payload, raw = call_llm(prompt)
         assert payload is not None, (
-            f"Claude produced unparseable output for edge case:\n"
+            f"Gemini produced unparseable output for edge case:\n"
             f"  Prompt: '{prompt}'\n"
             f"  Raw: {raw[:500]}"
         )
 
-    def test_nova_never_uses_eval(self):
-        """Nova Pro's free equations should never contain JS eval or dangerous patterns."""
+    def test_gemini_never_uses_eval(self):
+        """Gemini's free equations should never contain JS eval or dangerous patterns."""
         dangerous_patterns = [
             r'\beval\b', r'\bFunction\b', r'\bwindow\b',
             r'\bdocument\b', r'\brequire\b', r'\bimport\b',
@@ -991,7 +991,7 @@ class TestNovaProReliability:
         prompt = "create a hypothetical gravity simulation where force is 1/r^4"
         payload, raw = call_llm(prompt)
         if payload is None:
-            pytest.skip("Claude call failed")
+            pytest.skip("Gemini call failed")
         forces = payload.get("forces", [])
         for f in forces:
             for axis in ["force_x", "force_y", "force_z"]:
@@ -1107,12 +1107,12 @@ if __name__ == "__main__":
 
     if sys.argv[1] == "--prompt":
         prompt = sys.argv[2]
-        print(f"\n🤖 Calling Nova Pro: '{prompt}'")
+        print(f"\n🤖 Calling Gemini: '{prompt}'")
         payload, raw = call_llm(prompt)
         if payload is None:
-            print(f"❌ Nova Pro failed: {raw}")
+            print(f"❌ Gemini failed: {raw}")
             sys.exit(1)
-        print("✓ Nova Pro returned valid JSON")
+        print("✓ Gemini returned valid JSON")
     else:
         with open(sys.argv[1]) as f:
             payload = json.load(f)
