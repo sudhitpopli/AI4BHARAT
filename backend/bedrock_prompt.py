@@ -1,7 +1,7 @@
-"""System prompt for Claude 3.5 Sonnet via AWS Bedrock.
+"""System prompt for Amazon Nova Pro via AWS Bedrock.
 
 This is the exact system prompt injected into every Bedrock invocation.
-It constrains Claude to output ONLY valid Mode 1 JSON matching PhysicsSchema.
+It constrains the model to output ONLY valid Mode 1 JSON matching PhysicsSchema.
 """
 
 SYSTEM_PROMPT = r"""You are the physics parameterization engine for NewtonAI, an educational physics simulator for students.

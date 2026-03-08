@@ -2,9 +2,144 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body, #root {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-    padding: 0;
+/* ═══ Google Font ═══════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══ Glow effects ═════════════════════════════════════════════ */
+.glow-text {
+  text-shadow:
+    0 0 20px rgba(56, 189, 248, 0.5),
+    0 0 40px rgba(56, 189, 248, 0.25),
+    0 0 80px rgba(56, 189, 248, 0.1);
+}
+
+.glow-border {
+  box-shadow:
+    0 0 15px rgba(56, 189, 248, 0.15),
+    0 0 30px rgba(56, 189, 248, 0.08),
+    inset 0 0 15px rgba(56, 189, 248, 0.05);
+}
+
+.glow-border:focus-within {
+  box-shadow:
+    0 0 20px rgba(56, 189, 248, 0.3),
+    0 0 40px rgba(56, 189, 248, 0.15),
+    inset 0 0 20px rgba(56, 189, 248, 0.08);
+}
+
+/* ═══ Glassmorphic panel ═══════════════════════════════════════ */
+.glass-panel {
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 16px;
+}
+
+/* ═══ Custom slider ════════════════════════════════════════════ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 20px;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0.15) 100%);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #38bdf8;
+  margin-top: -5px;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+  transition: box-shadow 0.15s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.7);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.3) 0%, rgba(56, 189, 248, 0.15) 100%);
+}
+
+input[type="range"]::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #38bdf8;
+  border: none;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+}
+
+/* ═══ Sparkle animation ════════════════════════════════════════ */
+@keyframes sparkle-pulse {
+
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.sparkle {
+  animation: sparkle-pulse 3s ease-in-out infinite;
+}
+
+/* ═══ Atom spin ════════════════════════════════════════════════ */
+@keyframes atom-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.atom-spin {
+  animation: atom-spin 8s linear infinite;
+}
+
+/* ═══ Scrollbar ════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
 }

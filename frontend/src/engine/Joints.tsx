@@ -26,7 +26,18 @@ function resolveAnchor(obj: PhysicsObject, point: string, off: Vec3): [number, n
         b = m[point] ?? [0, 0, 0];
     } else if (obj.type === 'cylinder') {
         const r = obj.radius, h = obj.height / 2;
-        const m: Record<string, [number, number, number]> = { center: [0, 0, 0], top_center: [0, h, 0], bottom_center: [0, -h, 0], top_rim: [r, h, 0], bottom_rim: [r, -h, 0], side: [r, 0, 0] };
+        const m: Record<string, [number, number, number]> = {
+            center: [0, 0, 0],
+            top_center: [0, h, 0],
+            bottom_center: [0, -h, 0],
+            top_rim: [r, h, 0],
+            bottom_rim: [r, -h, 0],
+            top_left_rim: [-r, h, 0],
+            top_right_rim: [r, h, 0],
+            side: [r, 0, 0],
+            side_left: [-r, 0, 0],
+            side_right: [r, 0, 0]
+        };
         b = m[point] ?? [0, 0, 0];
     } else if (obj.type === 'string' || obj.type === 'spring') {
         b = point === 'top' ? [0, 0.02, 0] : point === 'bottom' ? [0, -0.02, 0] : [0, 0, 0];

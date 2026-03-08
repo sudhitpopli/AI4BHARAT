@@ -43,7 +43,7 @@ export function ChargedParticleRenderer({ obj, allObjects, physicsLinks }: { obj
     }, [obj, physicsLinks, allObjects]);
 
     useFrame((_, dt) => {
-        if (!meshRef.current) return;
+        if (!meshRef.current || obj.is_fixed) return;
         const pos = meshRef.current.position;
         const q = obj.charge, m = obj.mass;
         const clampDt = Math.min(dt, 0.016);
@@ -99,11 +99,68 @@ export function ChargedParticleRenderer({ obj, allObjects, physicsLinks }: { obj
 
 /* ═══ ELECTRIC FIELD (field lines from point charge / uniform) ═ */
 
-export function ElectricFieldRenderer({ obj }: { obj: ElectricField }) {
+export function ElectricFieldRenderer({ obj, allObjects = [] }: { obj: ElectricField; allObjects?: Mode2Object[] }) {
     const linesData = useMemo(() => {
         const lines: Float32Array[] = [];
         const N = obj.num_field_lines;
-        if (obj.field_type === 'point_charge' || obj.field_type === 'dipole') {
+
+        if (obj.field_type === 'dipole') {
+            // Find point charges in the scene
+            const charges = allObjects
+                .filter(o => o.type === 'charged_particle')
+                .map(o => ({
+                    p: new THREE.Vector3(o.position.x, o.position.y, o.position.z),
+                    q: (o as ChargedParticle).charge
+                }));
+
+            if (charges.length === 0) return lines;
+
+            // Trace lines starting from each positive charge
+            const posCharges = charges.filter(c => c.q > 0);
+            for (const src of posCharges) {
+                for (let i = 0; i < N; i++) {
+                    const phi = (i / N) * Math.PI * 2;
+                    
+                    let curr = src.p.clone().add(new THREE.Vector3(Math.cos(phi) * 0.4, Math.sin(phi) * 0.4, 0));
+                    const pts: number[] = [curr.x, curr.y, curr.z];
+
+                    for (let step = 0; step < 250; step++) {
+                        const E = new THREE.Vector3(0, 0, 0);
+                        let targetCharge: THREE.Vector3 | null = null;
+                        
+                        for (const c of charges) {
+                            const rVec = new THREE.Vector3().subVectors(curr, c.p);
+                            const dist = rVec.length();
+                            
+                            // If we enter the radius of a negative charge, terminate there
+                            if (dist < 0.45 && c.q < 0) {
+                                targetCharge = c.p;
+                                break;
+                            }
+                            
+                            // Superposition of point charge fields: E = k * q * r_hat / r^2
+                            if (dist > 0.01) {
+                                E.add(rVec.normalize().multiplyScalar(c.q / (dist * dist)));
+                            }
+                        }
+
+                        if (targetCharge) {
+                            pts.push(targetCharge.x, targetCharge.y, targetCharge.z);
+                            break;
+                        }
+
+                        if (E.length() < 0.0001) break;
+                        
+                        curr.add(E.normalize().multiplyScalar(0.1));
+                        pts.push(curr.x, curr.y, curr.z);
+
+                        // Bound check so lines don't fly off forever
+                        if (curr.length() > 20) break;
+                    }
+                    lines.push(new Float32Array(pts));
+                }
+            }
+        } else if (obj.field_type === 'point_charge') {
             for (let i = 0; i < N; i++) {
                 const theta = (i / N) * Math.PI * 2;
                 const pts: number[] = [];
@@ -127,11 +184,11 @@ export function ElectricFieldRenderer({ obj }: { obj: ElectricField }) {
             }
         }
         return lines;
-    }, [obj]);
+    }, [obj, allObjects]);
 
     return (
         <group>
-            {(obj.field_type === 'point_charge' || obj.field_type === 'dipole') && (
+            {obj.field_type === 'point_charge' && (
                 <mesh position={[obj.position.x, obj.position.y, obj.position.z]}>
                     <sphereGeometry args={[0.2, 16, 16]} />
                     <meshStandardMaterial color={obj.color} emissive={obj.color} emissiveIntensity={0.6} />

@@ -4,7 +4,7 @@ import { OrbitRenderer, WaveRenderer, SpringMassRenderer, ProjectileRenderer } f
 import { ChargedParticleRenderer, ElectricFieldRenderer, MagneticFieldRenderer, FieldLineRenderer, EMWaveRenderer } from './EMRenderers';
 import { CircuitScene } from './CircuitRenderer';
 import { RelativisticParticleRenderer, SpacetimeDiagramRenderer, GasParticleRenderer, HeatDiffusionRenderer, LightRayRenderer, OpticalMediumRenderer } from './MiscRenderers';
-import type { Mode2Schema, Mode2Object } from '../../types/physics_mode2';
+import type { Mode2Schema, Mode2Object, ChargedParticle } from '../../types/physics_mode2';
 
 /* ── Deep-clone + apply control overrides (same logic as Mode 1) ── */
 function applyOverrides(schema: Mode2Schema, overrides: Record<string, number>): Mode2Schema {
@@ -16,6 +16,18 @@ function applyOverrides(schema: Mode2Schema, overrides: Record<string, number>):
             let t: Record<string, unknown> = clone.environment as unknown as Record<string, unknown>;
             for (let i = 1; i < parts.length - 1; i++) t = t[parts[i]] as Record<string, unknown>;
             t[parts[parts.length - 1]] = val;
+            continue;
+        }
+        if (parts[0] === 'special') {
+            const pos = clone.objects.find(o => o.id === 'positive_charge') as ChargedParticle;
+            const neg = clone.objects.find(o => o.id === 'negative_charge') as ChargedParticle;
+            if (parts[1] === 'dipole_x' && pos && neg) {
+                pos.position.x = -val;
+                neg.position.x = val;
+            } else if (parts[1] === 'dipole_q' && pos && neg) {
+                pos.charge = val;
+                neg.charge = -val;
+            }
             continue;
         }
         const id = parts[0];
@@ -39,7 +51,7 @@ function Mode2ObjectRenderer({ obj, schema }: { obj: Mode2Object; schema: Mode2S
         case 'projectile': return <ProjectileRenderer obj={obj} />;
         // EM
         case 'charged_particle': return <ChargedParticleRenderer obj={obj} allObjects={schema.objects} physicsLinks={schema.physics_links} />;
-        case 'electric_field': return <ElectricFieldRenderer obj={obj} />;
+        case 'electric_field': return <ElectricFieldRenderer obj={obj} allObjects={schema.objects} />;
         case 'magnetic_field': return <MagneticFieldRenderer obj={obj} />;
         case 'field_line': return <FieldLineRenderer obj={obj} />;
         case 'em_wave': return <EMWaveRenderer obj={obj} />;

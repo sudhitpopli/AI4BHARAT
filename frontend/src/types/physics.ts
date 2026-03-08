@@ -73,6 +73,8 @@ export interface CylinderObject extends BaseObject {
     type: "cylinder";
     radius: number;
     height: number;
+    rotation_deg?: RotationDeg;
+    initial_velocity?: Vec3;
 }
 
 export interface PlaneObject extends BaseObject {

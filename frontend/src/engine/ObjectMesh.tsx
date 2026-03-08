@@ -21,7 +21,7 @@ export const ObjectMesh = forwardRef<RapierRigidBody, { obj: PhysicsObject }>(
                         <BallCollider args={[obj.radius]} restitution={obj.material.restitution} friction={obj.material.friction} density={obj.material.density} />
                         <mesh castShadow receiveShadow>
                             <sphereGeometry args={[obj.radius, 32, 32]} />
-                            <meshStandardMaterial color={obj.color} metalness={0.35} roughness={0.4} />
+                            <meshStandardMaterial color={obj.color} metalness={0.35} roughness={0.4} emissive={obj.color} emissiveIntensity={0.8} />
                         </mesh>
                     </RigidBody>
                 );
@@ -35,22 +35,26 @@ export const ObjectMesh = forwardRef<RapierRigidBody, { obj: PhysicsObject }>(
                         <CuboidCollider args={[obj.width / 2, obj.height / 2, obj.depth / 2]} restitution={obj.material.restitution} friction={obj.material.friction} density={obj.material.density} />
                         <mesh castShadow receiveShadow>
                             <boxGeometry args={[obj.width, obj.height, obj.depth]} />
-                            <meshStandardMaterial color={obj.color} metalness={0.2} roughness={0.5} />
+                            <meshStandardMaterial color={obj.color} metalness={0.2} roughness={0.5} emissive={obj.color} emissiveIntensity={0.8} />
                         </mesh>
                     </RigidBody>
                 );
             }
 
-            case 'cylinder':
+            case 'cylinder': {
+                const r: [number, number, number] = obj.rotation_deg
+                    ? [obj.rotation_deg.x * D2R, obj.rotation_deg.y * D2R, obj.rotation_deg.z * D2R]
+                    : [0, 0, 0];
                 return (
-                    <RigidBody ref={ref} type={t} position={p} colliders={false}>
+                    <RigidBody ref={ref} type={t} position={p} rotation={r} colliders={false}>
                         <CylinderCollider args={[obj.height / 2, obj.radius]} restitution={obj.material.restitution} friction={obj.material.friction} density={obj.material.density} />
                         <mesh castShadow receiveShadow>
                             <cylinderGeometry args={[obj.radius, obj.radius, obj.height, 32]} />
-                            <meshStandardMaterial color={obj.color} metalness={0.3} roughness={0.4} />
+                            <meshStandardMaterial color={obj.color} metalness={0.3} roughness={0.4} emissive={obj.color} emissiveIntensity={0.8} />
                         </mesh>
                     </RigidBody>
                 );
+            }
 
             case 'plane': {
                 const r: [number, number, number] = [obj.rotation_deg.x * D2R, obj.rotation_deg.y * D2R, obj.rotation_deg.z * D2R];
@@ -59,7 +63,7 @@ export const ObjectMesh = forwardRef<RapierRigidBody, { obj: PhysicsObject }>(
                         <CuboidCollider args={[obj.width / 2, 0.05, obj.depth / 2]} restitution={obj.material.restitution} friction={obj.material.friction} density={obj.material.density} />
                         <mesh receiveShadow>
                             <boxGeometry args={[obj.width, 0.1, obj.depth]} />
-                            <meshStandardMaterial color={obj.color} side={THREE.DoubleSide} metalness={0.05} roughness={0.85} />
+                            <meshStandardMaterial color={obj.color} side={THREE.DoubleSide} metalness={0.05} roughness={0.85} emissive="#1e293b" emissiveIntensity={0.15} />
                         </mesh>
                     </RigidBody>
                 );
@@ -71,7 +75,7 @@ export const ObjectMesh = forwardRef<RapierRigidBody, { obj: PhysicsObject }>(
                         <CuboidCollider args={[obj.width / 2, obj.height / 2, obj.depth / 2]} restitution={obj.material.restitution} friction={obj.material.friction} density={obj.material.density} />
                         <mesh castShadow receiveShadow>
                             <boxGeometry args={[obj.width, obj.height, obj.depth]} />
-                            <meshStandardMaterial color={obj.color} metalness={0.1} roughness={0.7} />
+                            <meshStandardMaterial color={obj.color} metalness={0.1} roughness={0.7} emissive={obj.color} emissiveIntensity={0.3} />
                         </mesh>
                     </RigidBody>
                 );
@@ -91,7 +95,7 @@ export const ObjectMesh = forwardRef<RapierRigidBody, { obj: PhysicsObject }>(
                         <BallCollider args={[0.12]} density={1} sensor />
                         <mesh>
                             <sphereGeometry args={[0.12]} />
-                            <meshStandardMaterial color={obj.color} metalness={0.5} roughness={0.3} />
+                            <meshStandardMaterial color={obj.color} metalness={0.5} roughness={0.3} emissive={obj.color} emissiveIntensity={2.0} />
                         </mesh>
                     </RigidBody>
                 );

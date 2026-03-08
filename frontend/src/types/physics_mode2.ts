@@ -73,6 +73,7 @@ export interface ChargedParticle {
     charge: number; mass: number; initial_velocity: Vec3;
     radius: number; trail_length: number; trail_fade: boolean;
     show_force_vector: boolean; show_velocity_vector: boolean;
+    is_fixed?: boolean;
 }
 
 export interface ElectricField {

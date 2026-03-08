@@ -1,7 +1,8 @@
-import { createRef, useMemo } from 'react';
+import { createRef, useMemo, useEffect } from 'react';
 import { Physics } from '@react-three/rapier';
 import type { RapierRigidBody } from '@react-three/rapier';
 import { ObjectMesh } from './ObjectMesh';
+import { BodyTrail } from './BodyTrail';
 import { JointRenderer, VisualLink } from './Joints';
 import { SceneSetup } from './SceneSetup';
 import type { PhysicsSchema } from '../types/physics';
@@ -9,6 +10,8 @@ import type { PhysicsSchema } from '../types/physics';
 interface Props {
     schema: PhysicsSchema;
     controlOverrides: Record<string, number>;
+    enableGlow?: boolean;
+    enableTrail?: boolean;
 }
 
 /** Resolve dot-notation path on schema to get a value */
@@ -47,15 +50,31 @@ function applyOverrides(schema: PhysicsSchema, overrides: Record<string, number>
     return clone;
 }
 
-export function PhysicsWorld({ schema: baseSchema, controlOverrides }: Props) {
+export function PhysicsWorld({ schema: baseSchema, controlOverrides, enableGlow = true, enableTrail = false }: Props) {
     const schema = useMemo(() => applyOverrides(baseSchema, controlOverrides), [baseSchema, controlOverrides]);
 
+    // Create a key for properties that require full remount (material properties, geometry)
+    // This includes: restitution, friction, density, radius, width, height, depth, length
+    const remountKey = useMemo(() => {
+        const criticalProps: string[] = [];
+        Object.entries(controlOverrides).forEach(([param, value]) => {
+            // Check if this is a property that requires remount
+            if (param.includes('material.') || param.includes('radius') || 
+                param.includes('width') || param.includes('height') || 
+                param.includes('depth') || param.includes('length')) {
+                criticalProps.push(`${param}:${value}`);
+            }
+        });
+        return criticalProps.join('|');
+    }, [controlOverrides]);
+
     // Create stable refs keyed by object id
+    // Recreate refs when remountKey changes to ensure fresh references after remount
     const refs = useMemo(() => {
         const m: Record<string, React.RefObject<RapierRigidBody>> = {};
         schema.objects.forEach((o) => { m[o.id] = createRef<RapierRigidBody>(); });
         return m;
-    }, [schema.objects.map((o) => o.id).join(',')]);
+    }, [schema.objects.map((o) => o.id).join(','), remountKey]);
 
     // Build object lookup for anchor resolution
     const objMap = useMemo(() => {
@@ -66,10 +85,29 @@ export function PhysicsWorld({ schema: baseSchema, controlOverrides }: Props) {
 
     const gravity: [number, number, number] = [0, schema.environment.gravity_y, 0];
 
+    // Update physics bodies when control overrides change (for properties that CAN be updated)
+    useEffect(() => {
+        schema.objects.forEach((obj) => {
+            const ref = refs[obj.id];
+            if (!ref?.current) return;
+
+            const body = ref.current;
+
+            // Update position if it changed
+            const currentPos = body.translation();
+            if (currentPos.x !== obj.position.x || currentPos.y !== obj.position.y || currentPos.z !== obj.position.z) {
+                body.setTranslation({ x: obj.position.x, y: obj.position.y, z: obj.position.z }, true);
+                // Reset velocity when position changes
+                body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+                body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+            }
+        });
+    }, [schema.objects, refs]);
+
     return (
         <>
-            <SceneSetup env={schema.environment} />
-            <Physics gravity={gravity} debug={false}>
+            <SceneSetup env={schema.environment} enableGlow={enableGlow} />
+            <Physics key={remountKey} gravity={gravity} debug={false}>
                 {/* Objects */}
                 {schema.objects.map((obj) => (
                     <ObjectMesh key={obj.id} ref={refs[obj.id]} obj={obj} />
@@ -93,6 +131,19 @@ export function PhysicsWorld({ schema: baseSchema, controlOverrides }: Props) {
                     if (!['rope', 'spring_link', 'rigid_rod'].includes(link.type)) return null;
                     return <VisualLink key={`vis-${link.id}`} refA={rA} refB={rB} link={link} />;
                 })}
+
+                {/* Trails for dynamic bodies */}
+                {enableTrail && schema.objects
+                    .filter((obj) => !obj.is_static && !obj.is_anchor && obj.type !== 'string')
+                    .map((obj) => (
+                        <BodyTrail
+                            key={`trail-${obj.id}`}
+                            bodyRef={refs[obj.id]}
+                            color={obj.color}
+                            maxPoints={120}
+                        />
+                    ))
+                }
             </Physics>
         </>
     );

@@ -1,0 +1,115 @@
+{
+  "simulation_id": "electric-dipole-fixed-001",
+  "title": "Electric Dipole Field Lines",
+  "description": "Two fixed charges of equal and opposite magnitude creating a classic dipole field. The field lines emerge from the positive charge and terminate on the negative charge.",
+  "physics_concept": "Electric Field, Dipole, Superposition Principle",
+  "mode": 2,
+  "difficulty": "intermediate",
+  "tags": ["electromagnetism", "dipole", "field-lines", "electrostatics"],
+  "is_qualitative": false,
+  "environment": {
+    "gravity_y": 0,
+    "background": "black",
+    "ambient_light": 0.5,
+    "show_axes": true,
+    "show_grid": true,
+    "camera_position": { "x": 0, "y": 0, "z": 15 },
+    "fog_enabled": false
+  },
+  "objects": [
+    {
+      "type": "charged_particle",
+      "id": "positive_charge",
+      "label": "Positive Charge (+q)",
+      "education_note": "A fixed positive charge. Electric field lines start here.",
+      "position": { "x": -3, "y": 0, "z": 0 },
+      "color": "#ef4444",
+      "charge": 1.0,
+      "mass": 100,
+      "initial_velocity": { "x": 0, "y": 0, "z": 0 },
+      "radius": 0.4,
+      "trail_length": 0,
+      "trail_fade": true,
+      "show_force_vector": false,
+      "show_velocity_vector": false,
+      "is_fixed": true
+    },
+    {
+      "type": "charged_particle",
+      "id": "negative_charge",
+      "label": "Negative Charge (-q)",
+      "education_note": "A fixed negative charge. Electric field lines end here.",
+      "position": { "x": 3, "y": 0, "z": 0 },
+      "color": "#3b82f6",
+      "charge": -1.0,
+      "mass": 100,
+      "initial_velocity": { "x": 0, "y": 0, "z": 0 },
+      "radius": 0.4,
+      "trail_length": 0,
+      "trail_fade": true,
+      "show_force_vector": false,
+      "show_velocity_vector": false,
+      "is_fixed": true
+    },
+    {
+      "type": "electric_field",
+      "id": "dipole_field",
+      "label": "Dipole Field",
+      "education_note": "The total field is the vector sum of fields from each charge.",
+      "position": { "x": 0, "y": 0, "z": 0 },
+      "color": "#ffffff",
+      "field_type": "dipole",
+      "field_strength": 1.0,
+      "field_direction": { "x": 1, "y": 0, "z": 0 },
+      "show_field_lines": true,
+      "num_field_lines": 16,
+      "field_line_color": "#ffffff",
+      "show_equipotential": false,
+      "equipotential_color": "#fbbf24",
+      "num_equipotential": 10,
+      "region_bounds": { "x": 10, "y": 10, "z": 10 }
+    }
+  ],
+  "circuit_links": [],
+  "physics_links": [],
+  "controls": [
+    {
+      "group": "Charges",
+      "label": "Charge Separation",
+      "param": "special.dipole_x",
+      "min": 1,
+      "max": 8,
+      "default": 3.0,
+      "step": 0.1,
+      "unit": "m",
+      "education_note": "Distance from origin for each charge. Increasing this spreads the field out."
+    },
+    {
+      "group": "Charges",
+      "label": "Charge Magnitude",
+      "param": "special.dipole_q",
+      "min": 0.1,
+      "max": 5.0,
+      "default": 1.0,
+      "step": 0.1,
+      "unit": "C",
+      "education_note": "Adjusts the strength of both charges symmetrically."
+    }
+  ],
+  "educational_sequence": [
+    {
+      "step": 1,
+      "title": "Observe Field Lines",
+      "instruction": "Look at how the lines curve from the red positive charge to the blue negative charge.",
+      "focus_objects": ["positive_charge", "negative_charge", "dipole_field"],
+      "focus_controls": []
+    },
+    {
+      "step": 2,
+      "title": "Change Separation",
+      "instruction": "Move the charges closer together. How does the field line density change between them?",
+      "focus_objects": ["dipole_field"],
+      "focus_controls": ["dipole_field.plate_separation"]
+    }
+  ]
+}
