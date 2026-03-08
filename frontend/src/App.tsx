@@ -2,8 +2,13 @@ import { useState, useCallback, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Html } from '@react-three/drei';
 import { PhysicsWorld } from './engine/PhysicsWorld';
+import { Mode2World } from './engine/mode2/Mode2World';
 import { ControlPanel } from './components/ControlPanel';
+import { DOUBLE_PENDULUM, SERIES_RLC, EM_RADIATION } from './demos/mode2Demos';
 import type { PhysicsSchema } from './types/physics';
+import type { Mode2Schema } from './types/physics_mode2';
+
+type AnySchema = PhysicsSchema | Mode2Schema;
 
 /* ── Demo schema: bouncing ball (instant test without backend) ── */
 const DEMO_SCHEMA: PhysicsSchema = {
@@ -53,6 +58,13 @@ const DEMO_SCHEMA: PhysicsSchema = {
   ],
 };
 
+const ALL_DEMOS: { label: string; schema: AnySchema }[] = [
+  { label: '🏀 Bouncing Ball (Mode 1)', schema: DEMO_SCHEMA },
+  { label: '🔗 Double Pendulum (Mode 2)', schema: DOUBLE_PENDULUM },
+  { label: '⚡ Series RLC Circuit (Mode 2)', schema: SERIES_RLC },
+  { label: '📡 EM Radiation (Mode 2)', schema: EM_RADIATION },
+];
+
 function Loader() {
   return (
     <Html center>
@@ -62,7 +74,7 @@ function Loader() {
 }
 
 export default function App() {
-  const [schema, setSchema] = useState<PhysicsSchema>(DEMO_SCHEMA);
+  const [schema, setSchema] = useState<AnySchema>(DEMO_SCHEMA);
   const [overrides, setOverrides] = useState<Record<string, number>>({});
   const [simKey, setSimKey] = useState(0);
   const [prompt, setPrompt] = useState('');
@@ -125,6 +137,12 @@ export default function App() {
           >
             {loading ? '⏳ Generating…' : '▶ Generate Simulation'}
           </button>
+          <select
+            onChange={(e) => { const d = ALL_DEMOS[parseInt(e.target.value)]; setSchema(d.schema); setOverrides({}); setSimKey(k => k + 1); }}
+            className="w-full mt-2 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-300 px-2 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+          >
+            {ALL_DEMOS.map((d, i) => <option key={i} value={i} className="bg-[#12122a]">{d.label}</option>)}
+          </select>
         </div>
 
         {/* Simulation info */}
@@ -157,7 +175,10 @@ export default function App() {
           }}
         >
           <Suspense fallback={<Loader />}>
-            <PhysicsWorld schema={schema} controlOverrides={overrides} />
+            {schema.mode === 1
+              ? <PhysicsWorld schema={schema as PhysicsSchema} controlOverrides={overrides} />
+              : <Mode2World schema={schema as Mode2Schema} controlOverrides={overrides} />
+            }
           </Suspense>
           <OrbitControls makeDefault enableDamping dampingFactor={0.08} />
         </Canvas>
@@ -165,7 +186,7 @@ export default function App() {
         {/* HUD overlay */}
         <div className="absolute top-4 left-4 pointer-events-none">
           <span className="px-2 py-1 text-[10px] font-mono bg-black/60 rounded-md text-emerald-400 backdrop-blur-sm">
-            Mode 1 · Rapier · {schema.objects.length} objects · {schema.links.length} links
+            Mode {schema.mode} · {schema.mode === 1 ? 'Rapier' : 'useFrame'} · {schema.objects.length} objects
           </span>
         </div>
       </main>

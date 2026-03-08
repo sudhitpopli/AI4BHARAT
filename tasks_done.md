@@ -106,3 +106,73 @@ AI4BHARAT/
 ## Verification Results
 - **TypeScript:** `npx tsc --noEmit` → **0 errors**
 - **Vite dev server:** `npm run dev` → running on `http://localhost:5173`
+
+---
+
+## Phase 4: Mode 2 Schema — Parameterized Math ✅
+**Completed:** 2026-03-08 ~10:15 IST
+
+### Pydantic — `backend/schema_mode2.py`
+- 25+ object types across 6 domains:
+  - **Classical Parametric:** `OrbitBody`, `Wave`, `SpringMass`, `Projectile`
+  - **Electromagnetism:** `ChargedParticle`, `ElectricField`, `MagneticField`, `FieldLine`, `EMWave`
+  - **Electronics (RLC):** `Resistor`, `Inductor`, `Capacitor`, `VoltageSource`, `CurrentSource`, `GroundNode`, `RLCNetwork`, `TransmissionLineSegment`, `TransistorBJT`, `TransistorMOSFET`, `OpAmp`
+  - **Relativity:** `RelativisticParticle`, `SpacetimeDiagram`
+  - **Thermodynamics:** `GasParticleSystem`, `HeatDiffusion`
+  - **Optics:** `LightRay`, `OpticalMedium`
+- 4 circuit link types: `WireLink`, `RealWireLink`, `CoupledInductorLink`, `TransmissionLineLink`
+- 5 physics link types: `OrbitalGravityLink`, `EMForceLink`, `WaveSuperpositionLink`, `SpringCouplingLink`, `RefractionBoundaryLink`
+- Top-level `Mode2Schema` with `mode: Literal[2]` locked
+
+### TypeScript — `frontend/src/types/physics_mode2.ts`
+- 1:1 mirror of Pydantic schema as discriminated union interfaces
+
+### Verification
+- **Pydantic:** `Mode2Schema` imports and validates → **14 top-level fields**
+- **TypeScript:** `npx tsc --noEmit` → **0 errors**
+
+### Updated File Tree
+```
+backend/
+├── schema.py           # Mode 1 Pydantic
+├── schema_mode2.py     # Mode 2 Pydantic (NEW)
+├── bedrock_prompt.py   # Mode 1 system prompt
+└── main.py
+
+frontend/src/types/
+├── physics.ts          # Mode 1 TypeScript
+└── physics_mode2.ts    # Mode 2 TypeScript (NEW)
+```
+
+---
+
+## Phase 5: Mode 2 Renderer Engine — Pure Math Physics ✅
+**Completed:** 2026-03-08 ~10:30 IST
+
+### Engine Files — `frontend/src/engine/mode2/`
+
+| File | Lines | Description |
+|------|-------|-------------|
+| `Mode2World.tsx` | ~85 | Main orchestrator — routes 25+ object types to domain renderers, applies control overrides, separates circuit objects into dedicated scene |
+| `ClassicalRenderers.tsx` | ~175 | **OrbitRenderer**: Keplerian elliptical motion with trails, rings, atmosphere glow, point light for stars. **WaveRenderer**: transverse/longitudinal/standing waves with second-wave superposition. **SpringMassRenderer**: damped + driven SHM with zigzag spring coil visual. **ProjectileRenderer**: parabolic trajectory with ground reset |
+| `EMRenderers.tsx` | ~175 | **ChargedParticleRenderer**: Lorentz force F=q(E+v×B) integration per frame with trails. **ElectricFieldRenderer**: point charge radial + uniform parallel field lines + parallel plate capacitor. **MagneticFieldRenderer**: straight wire circular + solenoid field lines. **FieldLineRenderer**: radial lines from point sources. **EMWaveRenderer**: coupled E/B sinusoidal oscillations |
+| `CircuitRenderer.tsx` | ~195 | **Component meshes**: 3D R (box), L (torus coils), C (parallel plates), V source (cylinder), ground (stacked bars). **Wire routing**: manhattan-style paths between terminals. **ChargeFlow**: InstancedMesh of golden glowing spheres flowing along wire paths proportional to I=V/R |
+| `MiscRenderers.tsx` | ~195 | **RelativisticParticleRenderer**: Lorentz contraction, γ-based glow. **SpacetimeDiagramRenderer**: axes, light cones, worldlines, events. **GasParticleRenderer**: N-body InstancedMesh with Maxwell-Boltzmann velocities, elastic wall bounces, temperature-color gradient. **HeatDiffusionRenderer**: 2D finite-difference heat equation on colored grid. **LightRayRenderer**: Snell's law refraction at optical boundaries. **OpticalMediumRenderer**: transparent shapes (slab/prism/lens/sphere) |
+
+### App.tsx Integration
+- Added `AnySchema = PhysicsSchema | Mode2Schema` union type
+- Canvas routes to `PhysicsWorld` (mode 1) or `Mode2World` (mode 2) based on `schema.mode`
+- HUD overlay shows correct mode label dynamically
+
+### Verification
+- **TypeScript:** `npx tsc --noEmit` → **0 errors**
+
+### Updated File Tree Addition
+```
+frontend/src/engine/mode2/
+├── Mode2World.tsx          # Orchestrator
+├── ClassicalRenderers.tsx  # Orbit, Wave, SpringMass, Projectile
+├── EMRenderers.tsx         # ChargedParticle, E/B Fields, EM Wave
+├── CircuitRenderer.tsx     # Electronics RLC + charge flow
+└── MiscRenderers.tsx       # Relativity, Thermo, Optics
+```
