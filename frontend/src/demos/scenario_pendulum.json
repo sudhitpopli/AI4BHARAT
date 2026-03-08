@@ -1,0 +1,147 @@
+{
+  "simulation_id": "simple-pendulum-001",
+  "title": "Simple Pendulum",
+  "description": "A ball on a string swinging from a fixed pivot demonstrates periodic motion and the conversion between potential and kinetic energy.",
+  "physics_concept": "Simple Harmonic Motion, Conservation of Energy",
+  "mode": 1,
+  "difficulty": "beginner",
+  "tags": ["pendulum", "oscillation", "gravity", "shm"],
+  "is_qualitative": false,
+  "environment": {
+    "gravity_y": -9.81,
+    "background": "black",
+    "ambient_light": 0.4,
+    "show_axes": true,
+    "show_grid": false,
+    "camera_position": { "x": 0, "y": 4, "z": 18 },
+    "fog_enabled": false
+  },
+  "objects": [
+    {
+      "type": "sphere",
+      "id": "pivot",
+      "label": "Pivot Point",
+      "education_note": "The fixed anchor the string rotates around. It applies no net force on the system — it only constrains direction.",
+      "is_static": true,
+      "is_anchor": true,
+      "color": "#06b6d4",
+      "position": { "x": 0, "y": 8, "z": 0 },
+      "radius": 0.12,
+      "material": { "preset": "steel", "restitution": 0.2, "friction": 0.3, "density": 7.8 }
+    },
+    {
+      "type": "sphere",
+      "id": "bob",
+      "label": "Pendulum Bob",
+      "education_note": "The mass swinging at the end of the string. Its period depends only on string length and gravity — not mass.",
+      "is_static": false,
+      "is_anchor": false,
+      "color": "#ef4444",
+      "position": { "x": 4, "y": 2, "z": 0 },
+      "radius": 0.35,
+      "initial_velocity": { "x": 0, "y": 0, "z": 0 },
+      "material": { "preset": "steel", "restitution": 0.05, "friction": 0.1, "density": 7.8 }
+    },
+    {
+      "type": "plane",
+      "id": "floor",
+      "label": "Floor",
+      "education_note": "Provides a reference surface. In a true pendulum the bob never reaches the floor.",
+      "is_static": true,
+      "is_anchor": false,
+      "color": "#1e293b",
+      "position": { "x": 0, "y": -2, "z": 0 },
+      "width": 30,
+      "depth": 30,
+      "rotation_deg": { "x": 0, "y": 0, "z": 0 },
+      "material": { "preset": "wood", "restitution": 0.4, "friction": 0.6, "density": 0.7 }
+    }
+  ],
+  "links": [
+    {
+      "id": "string-link",
+      "type": "rope",
+      "label": "Pendulum String",
+      "education_note": "An inextensible string. The tension T = mg·cos(θ) + mv²/L. At the bottom of the swing, tension exceeds weight.",
+      "object_a": { "id": "pivot", "attachment_point": "center", "offset": { "x": 0, "y": 0, "z": 0 } },
+      "object_b": { "id": "bob", "attachment_point": "top", "offset": { "x": 0, "y": 0, "z": 0 } },
+      "properties": {
+        "length": 6.2,
+        "stiffness": 950,
+        "damping": 0.05,
+        "break_force": null,
+        "show_segments": 12,
+        "color": "#f8fafc"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "group": "String",
+      "label": "String Length",
+      "param": "string-link.properties.length",
+      "min": 2,
+      "max": 10,
+      "default": 6.2,
+      "step": 0.1,
+      "unit": "m",
+      "education_note": "Period T = 2π√(L/g). Doubling L increases T by √2."
+    },
+    {
+      "group": "Bob",
+      "label": "Bob Mass (Density)",
+      "param": "bob.material.density",
+      "min": 0.5,
+      "max": 15,
+      "default": 7.8,
+      "step": 0.5,
+      "unit": "kg/m³",
+      "education_note": "Mass does not affect period for a simple pendulum (Galileo's insight)."
+    },
+    {
+      "group": "Environment",
+      "label": "Gravity",
+      "param": "environment.gravity_y",
+      "min": -25,
+      "max": -0.5,
+      "default": -9.81,
+      "step": 0.1,
+      "unit": "m/s²",
+      "education_note": "Moon gravity (-1.62) causes a noticeably slower swing. Try Jupiter (-24.8)!"
+    },
+    {
+      "group": "String",
+      "label": "Air Damping",
+      "param": "string-link.properties.damping",
+      "min": 0,
+      "max": 2,
+      "default": 0.05,
+      "step": 0.05,
+      "unit": "",
+      "education_note": "Real pendulums lose energy to air drag. Higher damping = faster decay of swing amplitude."
+    }
+  ],
+  "educational_sequence": [
+    {
+      "step": 1,
+      "title": "Observe the Period",
+      "instruction": "Watch the pendulum swing. Count how long one full back-and-forth takes.",
+      "focus_objects": ["bob"],
+      "focus_controls": []
+    },
+    {
+      "step": 2,
+      "title": "Change Gravity",
+      "instruction": "Reduce gravity to simulate the Moon (-1.62). How does the period change?",
+      "focus_objects": ["bob"],
+      "focus_controls": ["environment.gravity_y"]
+    },
+    {
+      "step": 3,
+      "title": "Change String Length",
+      "instruction": "Double the string length. The period should increase by a factor of √2 ≈ 1.41.",
+      "focus_objects": ["bob", "pivot"],
+      "focus_controls": ["string-link.properties.length"]
+    }
+  ]
+}

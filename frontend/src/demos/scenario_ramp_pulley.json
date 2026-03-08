@@ -1,0 +1,206 @@
+{
+  "simulation_id": "cylinder-ramp-pulley-box-001",
+  "title": "Cylinder on Ramp with Pulley",
+  "description": "A cylinder rolls down a slope, connected via a rope over a pulley to a hanging box. The interplay of rolling inertia, gravity, and tension drives the system.",
+  "physics_concept": "Rolling Motion, Moment of Inertia, Atwood Machine, Newton's Second Law",
+  "mode": 1,
+  "difficulty": "intermediate",
+  "tags": ["rolling", "pulley", "ramp", "atwood", "tension", "inertia"],
+  "is_qualitative": false,
+  "environment": {
+    "gravity_y": -9.81,
+    "background": "black",
+    "ambient_light": 0.4,
+    "show_axes": true,
+    "show_grid": true,
+    "camera_position": { "x": 0, "y": 6, "z": 24 },
+    "fog_enabled": false
+  },
+  "objects": [
+    {
+      "type": "ramp",
+      "id": "ramp",
+      "label": "Inclined Ramp",
+      "education_note": "The ramp angle determines how much of gravity acts along the slope: F_parallel = mg·sin(θ).",
+      "is_static": true,
+      "is_anchor": false,
+      "color": "#334155",
+      "position": { "x": -6, "y": 1.5, "z": 0 },
+      "width": 10,
+      "height": 0.4,
+      "depth": 4,
+      "angle_deg": 25,
+      "material": { "preset": "wood", "restitution": 0.3, "friction": 0.7, "density": 0.7 }
+    },
+    {
+      "type": "cylinder",
+      "id": "roller",
+      "label": "Rolling Cylinder",
+      "education_note": "A solid cylinder rolling without slipping uses I = ½mR². Its linear acceleration is 2/3 of a sliding block on the same slope.",
+      "is_static": false,
+      "is_anchor": false,
+      "color": "#f97316",
+      "position": { "x": -7.5, "y": 2.2, "z": 0 },
+      "rotation_deg": { "x": 90, "y": 0, "z": 0 },
+      "radius": 0.5,
+      "height": 1.2,
+      "material": { "preset": "steel", "restitution": 0.15, "friction": 0.8, "density": 7.8 }
+    },
+    {
+      "type": "cylinder",
+      "id": "pulley",
+      "label": "Pulley Wheel",
+      "education_note": "An ideal pulley redirects tension but adds its own rotational inertia to the system's effective mass.",
+      "is_static": false,
+      "is_anchor": false,
+      "color": "#94a3b8",
+      "position": { "x": 0, "y": 5.0, "z": 0 },
+      "rotation_deg": { "x": 90, "y": 0, "z": 0 },
+      "radius": 0.6,
+      "height": 0.3,
+      "material": { "preset": "steel", "restitution": 0.1, "friction": 0.3, "density": 2.0 }
+    },
+    {
+      "type": "box",
+      "id": "hanging_box",
+      "label": "Hanging Box",
+      "education_note": "The net force on the box is mg - T. The heavier the box, the more it pulls the cylinder up the ramp.",
+      "is_static": false,
+      "is_anchor": false,
+      "color": "#3b82f6",
+      "position": { "x": 0.6, "y": 2.0, "z": 0 },
+      "width": 1.0,
+      "height": 1.0,
+      "depth": 1.0,
+      "rotation_deg": { "x": 0, "y": 0, "z": 0 },
+      "initial_velocity": { "x": 0, "y": 0, "z": 0 },
+      "material": { "preset": "steel", "restitution": 0.1, "friction": 0.4, "density": 4.0 }
+    },
+    {
+      "type": "plane",
+      "id": "floor",
+      "label": "Floor",
+      "education_note": "Ground reference surface.",
+      "is_static": true,
+      "is_anchor": false,
+      "color": "#1e293b",
+      "position": { "x": 0, "y": -0.5, "z": 0 },
+      "width": 40,
+      "depth": 10,
+      "rotation_deg": { "x": 0, "y": 0, "z": 0 },
+      "material": { "preset": "wood", "restitution": 0.3, "friction": 0.6, "density": 0.7 }
+    }
+  ],
+  "links": [
+    {
+      "id": "pulley-pivot",
+      "type": "hinge",
+      "label": "Pulley Pivot",
+      "education_note": "Pins the pulley to a fixed point in space.",
+      "object_a": { "id": "floor", "attachment_point": "center", "offset": { "x": 0, "y": 5.5, "z": 0 } },
+      "object_b": { "id": "pulley", "attachment_point": "center", "offset": { "x": 0, "y": 0, "z": 0 } },
+      "properties": { "axis": "z" }
+    },
+    {
+      "id": "rope-roller-to-pulley",
+      "type": "rope",
+      "label": "Rope: Roller → Pulley",
+      "education_note": "Transfers the cylinder's motion up to the pulley.",
+      "object_a": { "id": "roller", "attachment_point": "center", "offset": { "x": 0, "y": 0, "z": 0 } },
+      "object_b": { "id": "pulley", "attachment_point": "side_left", "offset": { "x": 0, "y": 0, "z": 0 } },
+      "properties": {
+        "length": 7.6,
+        "stiffness": 950,
+        "damping": 0.1,
+        "break_force": null,
+        "show_segments": 14,
+        "color": "#fbbf24"
+      }
+    },
+    {
+      "id": "rope-pulley-to-box",
+      "type": "rope",
+      "label": "Rope: Pulley → Box",
+      "education_note": "Transfers tension from the pulley down to the hanging box.",
+      "object_a": { "id": "pulley", "attachment_point": "side_right", "offset": { "x": 0, "y": 0, "z": 0 } },
+      "object_b": { "id": "hanging_box", "attachment_point": "top_center", "offset": { "x": 0, "y": 0, "z": 0 } },
+      "properties": {
+        "length": 2.5,
+        "stiffness": 950,
+        "damping": 0.1,
+        "break_force": null,
+        "show_segments": 10,
+        "color": "#fbbf24"
+      }
+    }
+  ],
+  "controls": [
+    {
+      "group": "Ramp",
+      "label": "Ramp Angle",
+      "param": "ramp.angle_deg",
+      "min": 5,
+      "max": 45,
+      "default": 25,
+      "step": 1,
+      "unit": "°",
+      "education_note": "Steeper ramp → more gravity component along slope → faster cylinder."
+    },
+    {
+      "group": "Cylinder",
+      "label": "Cylinder Density",
+      "param": "roller.material.density",
+      "min": 0.5,
+      "max": 15,
+      "default": 7.8,
+      "step": 0.5,
+      "unit": "kg/m³",
+      "education_note": "Heavier cylinder has more inertia."
+    },
+    {
+      "group": "Box",
+      "label": "Box Mass",
+      "param": "hanging_box.material.density",
+      "min": 0.5,
+      "max": 15,
+      "default": 4.0,
+      "step": 0.5,
+      "unit": "kg/m³",
+      "education_note": "Heavier box pulls harder."
+    },
+    {
+      "group": "Environment",
+      "label": "Gravity",
+      "param": "environment.gravity_y",
+      "min": -25,
+      "max": -0.5,
+      "default": -9.81,
+      "step": 0.1,
+      "unit": "m/s²",
+      "education_note": "Try lunar gravity (-1.62) for a slow-motion demonstration."
+    }
+  ],
+  "educational_sequence": [
+    {
+      "step": 1,
+      "title": "Observe the balance",
+      "instruction": "Watch which direction the system moves. Does the cylinder roll up or down?",
+      "focus_objects": ["roller", "hanging_box"],
+      "focus_controls": []
+    },
+    {
+      "step": 2,
+      "title": "Increase box mass",
+      "instruction": "Raise Box Density. At what point does the box become heavy enough to pull the cylinder back uphill?",
+      "focus_objects": ["hanging_box"],
+      "focus_controls": ["hanging_box.material.density"]
+    },
+    {
+      "step": 3,
+      "title": "Change ramp angle",
+      "instruction": "Make the ramp steeper. How does it affect the system acceleration?",
+      "focus_objects": ["ramp", "roller"],
+      "focus_controls": ["ramp.angle_deg"]
+    }
+  ]
+}
