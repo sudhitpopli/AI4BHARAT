@@ -47,45 +47,45 @@ function resolveAnchor(obj: PhysicsObject, point: string, off: Vec3): [number, n
 
 /* ── joint wrappers (each calls exactly ONE hook) ─── */
 
-function RopeJoint({ refA, refB, ancA, ancB, link }: { refA: React.RefObject<RapierRigidBody>; refB: React.RefObject<RapierRigidBody>; ancA: [number, number, number]; ancB: [number, number, number]; link: Link }) {
+function RopeJoint({ refA, refB, ancA, ancB, link }: { refA: React.RefObject<RapierRigidBody | null>; refB: React.RefObject<RapierRigidBody | null>; ancA: [number, number, number]; ancB: [number, number, number]; link: Link }) {
     const props = link.properties as RopeProperties;
-    useRopeJoint(refA, refB, [ancA, ancB, props.length]);
+    useRopeJoint(refA as React.RefObject<RapierRigidBody>, refB as React.RefObject<RapierRigidBody>, [ancA, ancB, props.length]);
     return null;
 }
 
-function SpringJoint({ refA, refB, ancA, ancB, link }: { refA: React.RefObject<RapierRigidBody>; refB: React.RefObject<RapierRigidBody>; ancA: [number, number, number]; ancB: [number, number, number]; link: Link }) {
+function SpringJoint({ refA, refB, ancA, ancB, link }: { refA: React.RefObject<RapierRigidBody | null>; refB: React.RefObject<RapierRigidBody | null>; ancA: [number, number, number]; ancB: [number, number, number]; link: Link }) {
     const props = link.properties as SpringLinkProperties;
-    useSpringJoint(refA, refB, [ancA, ancB, props.rest_length, props.spring_constant, props.damping]);
+    useSpringJoint(refA as React.RefObject<RapierRigidBody>, refB as React.RefObject<RapierRigidBody>, [ancA, ancB, props.rest_length, props.spring_constant, props.damping]);
     return null;
 }
 
-function HingeJoint({ refA, refB, ancA, ancB, link }: { refA: React.RefObject<RapierRigidBody>; refB: React.RefObject<RapierRigidBody>; ancA: [number, number, number]; ancB: [number, number, number]; link: Link }) {
+function HingeJoint({ refA, refB, ancA, ancB, link }: { refA: React.RefObject<RapierRigidBody | null>; refB: React.RefObject<RapierRigidBody | null>; ancA: [number, number, number]; ancB: [number, number, number]; link: Link }) {
     const props = link.properties as HingeProperties;
     const axis: [number, number, number] = props.axis === 'x' ? [1, 0, 0] : props.axis === 'y' ? [0, 1, 0] : [0, 0, 1];
-    useRevoluteJoint(refA, refB, [ancA, ancB, axis]);
+    useRevoluteJoint(refA as React.RefObject<RapierRigidBody>, refB as React.RefObject<RapierRigidBody>, [ancA, ancB, axis]);
     return null;
 }
 
-function BallSocketJoint({ refA, refB, ancA, ancB }: { refA: React.RefObject<RapierRigidBody>; refB: React.RefObject<RapierRigidBody>; ancA: [number, number, number]; ancB: [number, number, number] }) {
-    useSphericalJoint(refA, refB, [ancA, ancB]);
+function BallSocketJoint({ refA, refB, ancA, ancB }: { refA: React.RefObject<RapierRigidBody | null>; refB: React.RefObject<RapierRigidBody | null>; ancA: [number, number, number]; ancB: [number, number, number] }) {
+    useSphericalJoint(refA as React.RefObject<RapierRigidBody>, refB as React.RefObject<RapierRigidBody>, [ancA, ancB]);
     return null;
 }
 
-function WeldJoint({ refA, refB, ancA, ancB }: { refA: React.RefObject<RapierRigidBody>; refB: React.RefObject<RapierRigidBody>; ancA: [number, number, number]; ancB: [number, number, number] }) {
-    useFixedJoint(refA, refB, [ancA, [0, 0, 0, 1], ancB, [0, 0, 0, 1]]);
+function WeldJoint({ refA, refB, ancA, ancB }: { refA: React.RefObject<RapierRigidBody | null>; refB: React.RefObject<RapierRigidBody | null>; ancA: [number, number, number]; ancB: [number, number, number] }) {
+    useFixedJoint(refA as React.RefObject<RapierRigidBody>, refB as React.RefObject<RapierRigidBody>, [ancA, [0, 0, 0, 1], ancB, [0, 0, 0, 1]]);
     return null;
 }
 
-function SliderJoint({ refA, refB, ancA, ancB, link }: { refA: React.RefObject<RapierRigidBody>; refB: React.RefObject<RapierRigidBody>; ancA: [number, number, number]; ancB: [number, number, number]; link: Link }) {
+function SliderJoint({ refA, refB, ancA, ancB, link }: { refA: React.RefObject<RapierRigidBody | null>; refB: React.RefObject<RapierRigidBody | null>; ancA: [number, number, number]; ancB: [number, number, number]; link: Link }) {
     const props = link.properties as SliderProperties;
     const axis: [number, number, number] = props.axis === 'x' ? [1, 0, 0] : props.axis === 'y' ? [0, 1, 0] : [0, 0, 1];
-    usePrismaticJoint(refA, refB, [ancA, ancB, axis]);
+    usePrismaticJoint(refA as React.RefObject<RapierRigidBody>, refB as React.RefObject<RapierRigidBody>, [ancA, ancB, axis]);
     return null;
 }
 
 /* ── visual line between two bodies (updated every frame) ── */
 
-export function VisualLink({ refA, refB, link }: { refA: React.RefObject<RapierRigidBody>; refB: React.RefObject<RapierRigidBody>; link: Link }) {
+export function VisualLink({ refA, refB, link }: { refA: React.RefObject<RapierRigidBody | null>; refB: React.RefObject<RapierRigidBody | null>; link: Link }) {
     const lineRef = useRef<THREE.Line>(null);
     const isSpring = link.type === 'spring_link';
     const segments = isSpring ? 40 : (link.type === 'rope' ? (link.properties as RopeProperties).show_segments : 2);
@@ -142,8 +142,8 @@ export function JointRenderer({
     link, refA, refB, objA, objB,
 }: {
     link: Link;
-    refA: React.RefObject<RapierRigidBody>;
-    refB: React.RefObject<RapierRigidBody>;
+    refA: React.RefObject<RapierRigidBody | null>;
+    refB: React.RefObject<RapierRigidBody | null>;
     objA: PhysicsObject;
     objB: PhysicsObject;
 }) {
