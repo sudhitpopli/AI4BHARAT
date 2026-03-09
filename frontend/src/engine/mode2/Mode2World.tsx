@@ -13,9 +13,16 @@ function applyOverrides(schema: Mode2Schema, overrides: Record<string, number>):
     for (const [param, val] of Object.entries(overrides)) {
         const parts = param.split('.');
         if (parts[0] === 'environment') {
-            let t: Record<string, unknown> = clone.environment as unknown as Record<string, unknown>;
-            for (let i = 1; i < parts.length - 1; i++) t = t[parts[i]] as Record<string, unknown>;
-            t[parts[parts.length - 1]] = val;
+            let t: any = clone.environment;
+            for (let i = 1; i < parts.length - 1; i++) {
+                if (t && t[parts[i]] !== undefined) {
+                    t = t[parts[i]];
+                } else {
+                    t = null;
+                    break;
+                }
+            }
+            if (t) t[parts[parts.length - 1]] = val;
             continue;
         }
         if (parts[0] === 'special') {
@@ -31,11 +38,18 @@ function applyOverrides(schema: Mode2Schema, overrides: Record<string, number>):
             continue;
         }
         const id = parts[0];
-        const obj = (clone.objects as unknown as Array<Record<string, unknown>>).find(o => o.id === id);
+        const obj = (clone.objects as unknown as Array<Record<string, any>>).find(o => o.id === id);
         if (obj) {
-            let t: Record<string, unknown> = obj;
-            for (let i = 1; i < parts.length - 1; i++) t = t[parts[i]] as Record<string, unknown>;
-            t[parts[parts.length - 1]] = val;
+            let t: any = obj;
+            for (let i = 1; i < parts.length - 1; i++) {
+                if (t && t[parts[i]] !== undefined) {
+                    t = t[parts[i]];
+                } else {
+                    t = null;
+                    break;
+                }
+            }
+            if (t) t[parts[parts.length - 1]] = val;
         }
     }
     return clone;

@@ -1,476 +1,357 @@
-# NewtonAI Architecture - Gemini Integration
+# NewtonAI - System Architecture
 
-## System Overview
+## Overview
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         USER BROWSER                             │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │                    React Frontend                           │ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │ │
-│  │  │  Landing     │  │  Simulation  │  │  Control     │     │ │
-│  │  │  Page        │  │  View        │  │  Panel       │     │ │
-│  │  │              │  │              │  │  + Chat      │     │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘     │ │
-│  │                                                              │ │
-│  │  localStorage:                                               │ │
-│  │  - newton_session_id                                        │ │
-│  │  - newton_simulation_history                                │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ HTTP/JSON
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      FastAPI Backend                             │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Endpoints:                                                 │ │
-│  │  • POST /generate  → Generate simulation                   │ │
-│  │  • POST /chat      → Ask questions                         │ │
-│  │  • GET  /health    → Check status                          │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                  │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Load Balancer (Round-Robin)                               │ │
-│  │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐        │ │
-│  │  │ Key1 │→ │ Key2 │→ │ Key3 │→ │ Key4 │→ │ Key5 │→ Key1  │ │
-│  │  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘        │ │
-│  └────────────────────────────────────────────────────────────┘ │
-│                                                                  │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │  Session Storage (In-Memory)                               │ │
-│  │  { session_id: [messages] }                                │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              │ API Call
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                   Google AI Studio                               │
-│  ┌────────────────────────────────────────────────────────────┐ │
-│  │         Gemini 2.0 Flash (gemini-2.0-flash-exp)           │ │
-│  │                      FREE TIER                              │ │
-│  │  • System Prompt: Physics JSON generator                   │ │
-│  │  • Temperature: 0.1 (precise)                               │ │
-│  │  • Max Tokens: 8192                                         │ │
-│  └────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+NewtonAI is an educational 3D physics simulator that generates interactive simulations from natural language prompts. The system uses AI models (Google Gemini + AWS Bedrock fallback) to convert user descriptions into structured JSON simulations rendered in a 3D environment.
 
----
-
-## Data Flow: Simulation Generation
+## Architecture Diagram
 
 ```
-1. User Input
-   ┌─────────────────────────────────────┐
-   │ "Show me a bouncing ball"           │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-2. Frontend (React)
-   ┌─────────────────────────────────────┐
-   │ POST /generate                      │
-   │ {                                   │
-   │   prompt: "Show me...",             │
-   │   session_id: "uuid" (optional)     │
-   │ }                                   │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-3. Backend (FastAPI)
-   ┌─────────────────────────────────────┐
-   │ • Generate/reuse session_id         │
-   │ • Get last 5 messages from storage  │
-   │ • Select next API key (round-robin) │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-4. Gemini API
-   ┌─────────────────────────────────────┐
-   │ • Receive prompt + history          │
-   │ • Generate JSON simulation          │
-   │ • Return structured response        │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-5. Backend Validation
-   ┌─────────────────────────────────────┐
-   │ • Extract JSON from response        │
-   │ • Validate with Pydantic            │
-   │ • Save to session storage           │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-6. Frontend Rendering
-   ┌─────────────────────────────────────┐
-   │ • Store session_id in localStorage  │
-   │ • Add to simulation history         │
-   │ • Render with Three.js + Rapier     │
-   └─────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                         USER BROWSER                              │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  React + TypeScript Frontend                               │  │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌─────────────────┐  │  │
+│  │  │ Control Panel│  │ Physics World│  │ Simulation      │  │  │
+│  │  │ + Chat       │  │ (Three.js +  │  │ History Sidebar │  │  │
+│  │  │              │  │  Rapier)     │  │                 │  │  │
+│  │  └──────────────┘  └──────────────┘  └─────────────────┘  │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└───────────────────────────┬──────────────────────────────────────┘
+                            │ HTTPS / REST API
+                            ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    FASTAPI BACKEND (Python 3.9)                   │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  Three-Stage Generation Pipeline                          │  │
+│  │  Stage 1: Physics Reasoning → Stage 2: JSON Encoding →   │  │
+│  │  Stage 3: Validation + Error Correction                   │  │
+│  └────────────────────────────────────────────────────────────┘  │
+│  ┌────────────────────────────────────────────────────────────┐  │
+│  │  AI Model Integration (Primary + Fallback)                │  │
+│  │  • Google Gemini (1-5 keys, round-robin)                  │  │
+│  │  • AWS Bedrock Nova Pro (automatic fallback)              │  │
+│  └────────────────────────────────────────────────────────────┘  │
+└───────────────────────┬───────────────────┬──────────────────────┘
+                        │                   │
+                        ▼                   ▼
+        ┌───────────────────────┐  ┌──────────────────┐
+        │  Google Gemini API    │  │  AWS Bedrock     │
+        │  (gemini-3-flash-     │  │  (Nova Pro)      │
+        │   preview)            │  │                  │
+        └───────────────────────┘  └──────────────────┘
+                        │
+                        ▼
+        ┌───────────────────────────────────┐
+        │  AWS DynamoDB                     │
+        │  • Session storage                │
+        │  • Chat history                   │
+        └───────────────────────────────────┘
 ```
 
----
+## System Components
 
-## Data Flow: Chat Interaction
-
-```
-1. User Question
-   ┌─────────────────────────────────────┐
-   │ "Why does the ball bounce?"         │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-2. ControlPanel (React)
-   ┌─────────────────────────────────────┐
-   │ POST /chat                          │
-   │ {                                   │
-   │   session_id: "uuid",               │
-   │   question: "Why...",               │
-   │   simulation_id: "bouncing-ball"    │
-   │ }                                   │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-3. Backend (FastAPI)
-   ┌─────────────────────────────────────┐
-   │ • Get conversation history          │
-   │ • Select next API key               │
-   │ • Use chat system prompt            │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-4. Gemini API
-   ┌─────────────────────────────────────┐
-   │ • Receive question + history        │
-   │ • Generate tutor response           │
-   │ • Return plain text answer          │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-5. Backend Storage
-   ┌─────────────────────────────────────┐
-   │ • Save question to session          │
-   │ • Save answer to session            │
-   │ • Return response                   │
-   └─────────────────────────────────────┘
-                  │
-                  ▼
-6. ControlPanel Display
-   ┌─────────────────────────────────────┐
-   │ • Add to message list               │
-   │ • Scroll to bottom                  │
-   │ • Enable input for next question    │
-   └─────────────────────────────────────┘
-```
-
----
-
-## Component Hierarchy
-
-```
-App
-├── LandingPage
-│   ├── Logo
-│   ├── Prompt Input
-│   └── Simulation History Sidebar
-│       ├── User Simulations (cyan)
-│       └── Example Demos (slate)
-│
-└── SimulationView
-    ├── Canvas (Three.js)
-    │   ├── PhysicsWorld (Mode 1)
-    │   │   └── Rapier Physics
-    │   └── Mode2World (Mode 2)
-    │       └── Custom Math
-    │
-    ├── ControlPanel (top-right)
-    │   ├── Header + Collapse
-    │   ├── Chat Interface (when open)
-    │   │   ├── Messages
-    │   │   ├── Input
-    │   │   └── Send Button
-    │   ├── Sliders (when closed)
-    │   │   └── Grouped Controls
-    │   └── Action Buttons
-    │       ├── Reset
-    │       └── Toggle Chat/Controls
-    │
-    └── Render Toggles (bottom-left)
-        ├── Glow
-        └── Trail
-```
-
----
-
-## Load Balancing Strategy
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    API Key Pool                              │
-│  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐         │
-│  │ Key1 │  │ Key2 │  │ Key3 │  │ Key4 │  │ Key5 │         │
-│  └──────┘  └──────┘  └──────┘  └──────┘  └──────┘         │
-│     ▲                                          │             │
-│     │                                          │             │
-│     └──────────────────────────────────────────┘             │
-│              Round-Robin Rotation                            │
-└─────────────────────────────────────────────────────────────┘
-
-Request Flow:
-Request 1 → Key1 → Gemini API → Response
-Request 2 → Key2 → Gemini API → Response
-Request 3 → Key3 → Gemini API → Response
-Request 4 → Key4 → Gemini API → Response
-Request 5 → Key5 → Gemini API → Response
-Request 6 → Key1 → Gemini API → Response (wraps around)
-...
-
-Benefits:
-✓ Prevents rate limiting
-✓ Distributes quota usage
-✓ Automatic failover
-✓ No manual intervention
-```
-
----
-
-## Session Storage Structure
-
-```javascript
-// In-Memory Storage (Backend)
-session_storage = {
-  "uuid-1": [
-    {
-      role: "user",
-      content: "Show me a bouncing ball",
-      timestamp: "2024-01-01T12:00:00Z"
-    },
-    {
-      role: "assistant",
-      content: '{"simulation_id": "bouncing-ball-001", ...}',
-      timestamp: "2024-01-01T12:00:03Z"
-    },
-    {
-      role: "user",
-      content: "Why does it bounce?",
-      timestamp: "2024-01-01T12:01:00Z"
-    },
-    {
-      role: "assistant",
-      content: "The ball bounces because...",
-      timestamp: "2024-01-01T12:01:02Z"
-    }
-  ],
-  "uuid-2": [ /* another session */ ]
-}
-
-// localStorage (Frontend)
-{
-  "newton_session_id": "uuid-1",
-  "newton_simulation_history": [
-    {
-      label: "Bouncing Ball",
-      schema: { /* full simulation JSON */ }
-    },
-    {
-      label: "Simple Pendulum",
-      schema: { /* full simulation JSON */ }
-    }
-  ]
-}
-```
-
----
-
-## ControlPanel States
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ControlPanel                              │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  STATE 1: Controls Mode (chatOpen = false)                  │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │  Title: "Bouncing Ball"                    [Collapse]  │ │
-│  │  ────────────────────────────────────────────────────  │ │
-│  │  BALL                                                  │ │
-│  │  Restitution: 0.85 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │ │
-│  │  Drop Height: 8.0m ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │ │
-│  │  ────────────────────────────────────────────────────  │ │
-│  │  ENVIRONMENT                                           │ │
-│  │  Gravity: -9.81 m/s² ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │ │
-│  │  ────────────────────────────────────────────────────  │ │
-│  │  [↻ Reset Simulation]                                 │ │
-│  │  [💬 Open Chat]                                       │ │
-│  └────────────────────────────────────────────────────────┘ │
-│                                                              │
-│  STATE 2: Chat Mode (chatOpen = true)                       │
-│  ┌────────────────────────────────────────────────────────┐ │
-│  │  Title: "Bouncing Ball"                    [Collapse]  │ │
-│  │  ────────────────────────────────────────────────────  │ │
-│  │  ┌──────────────────────────────────────────────────┐ │ │
-│  │  │ 🟢 Physics Tutor                          [X]    │ │ │
-│  │  ├──────────────────────────────────────────────────┤ │ │
-│  │  │                                                  │ │ │
-│  │  │  User: Why does the ball bounce?                │ │ │
-│  │  │                                                  │ │ │
-│  │  │  Tutor: The ball bounces because of the         │ │ │
-│  │  │  coefficient of restitution...                  │ │ │
-│  │  │                                                  │ │ │
-│  │  ├──────────────────────────────────────────────────┤ │ │
-│  │  │ [Ask about the physics...        ] [Send]       │ │ │
-│  │  └──────────────────────────────────────────────────┘ │ │
-│  │  ────────────────────────────────────────────────────  │ │
-│  │  [↻ Reset Simulation]                                 │ │
-│  │  [📊 Show Controls]                                   │ │
-│  └────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Technology Stack
-
-### Frontend
-- **Framework**: React 18
+### Frontend (React + TypeScript)
+- **Framework**: React 18 with TypeScript
 - **3D Rendering**: Three.js + React Three Fiber
-- **Physics**: Rapier (WASM)
-- **Styling**: TailwindCSS
-- **State**: React Hooks + localStorage
+- **Physics Engine**: Rapier (WebAssembly)
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
+- **State**: React hooks (useState, useEffect, useMemo)
 
-### Backend
-- **Framework**: FastAPI
-- **AI Model**: Gemini 2.0 Flash (gemini-2.0-flash-exp) - FREE TIER
+### Backend (Python + FastAPI)
+- **Framework**: FastAPI 0.100+
+- **AI SDK**: google-generativeai, boto3
 - **Validation**: Pydantic
-- **Session Storage**: In-memory dict (production: Redis/PostgreSQL)
-- **Environment**: python-dotenv
+- **ASGI Server**: Uvicorn
+- **Lambda Handler**: Mangum
 
 ### Infrastructure
-- **Development**: localhost:8000 (backend), localhost:5173 (frontend)
-- **Production**: Any hosting platform (Railway, Render, Vercel, etc.)
-- **Database**: None required (optional for production)
+- **Backend Hosting**: AWS Lambda + API Gateway
+- **Frontend Hosting**: S3 + CloudFront
+- **Session Storage**: DynamoDB
+- **Logging**: CloudWatch Logs
+- **Monitoring**: CloudWatch Metrics
 
----
+## Three-Stage Generation Pipeline
 
-## Security Considerations
+### Stage 1: Physics Reasoning
+- **Purpose**: Generate plain English reasoning with complexity validation
+- **Input**: User prompt + PHYSICS_REASONING_PROMPT
+- **Output**: Reasoning text + complexity check (STATUS:0-4)
+- **Token Limit**: 2048
+- **Temperature**: 0.7
 
-### API Keys
-- ✅ Stored in `.env` file (not committed to git)
-- ✅ Server-side only (never exposed to frontend)
-- ✅ Multiple keys for redundancy
+### Stage 2: JSON Encoding
+- **Purpose**: Convert reasoning to structured JSON
+- **Input**: User prompt + reasoning + SYSTEM_PROMPT
+- **Output**: Raw JSON string
+- **Token Limit**: 8192
+- **Temperature**: 0.1
+- **MIME Type**: application/json
 
-### CORS
-- ⚠️ Currently allows all origins (`["*"]`)
-- 🔒 Production: Restrict to specific domains
+### Stage 3: Validation + Error Correction
+- **Purpose**: Validate and auto-correct errors
+- **Input**: Raw JSON + validation errors
+- **Output**: Validated simulation dict
+- **Token Limit**: 8192
+- **Temperature**: 0.0
 
-### Rate Limiting
-- ⚠️ Currently none
-- 🔒 Production: Add per-user rate limiting
+## AI Model Integration
 
-### Session Storage
-- ⚠️ Currently in-memory (lost on restart)
-- 🔒 Production: Use Redis/PostgreSQL with encryption
+### Primary: Google Gemini
+- **Model**: gemini-3-flash-preview
+- **Keys**: 1-5 API keys (round-robin)
+- **Rate Limit**: 15 requests/minute per key
+- **Total Capacity**: 15-75 requests/minute
+- **Fallback**: Automatic on rate limit (429, quota, rate)
 
----
+### Fallback: AWS Bedrock Nova Pro
+- **Model**: us.amazon.nova-pro-v1:0
+- **Trigger**: All Gemini keys exhausted
+- **Behavior**: Seamless automatic switch
+- **Cost**: ~$0.10-0.20 per simulation
 
-## Performance Metrics
+## Data Flow
 
-### Latency
-- **Simulation Generation**: 2-5 seconds
-- **Chat Response**: 1-2 seconds
-- **UI Interaction**: <16ms (60 FPS)
-
-### Throughput
-- **Concurrent Users**: Limited by Gemini API quotas
-- **Requests/Minute**: 15 (free tier) per API key
-- **With 5 Keys**: 75 requests/minute
-
-### Storage
-- **Session Data**: ~1KB per message
-- **Simulation History**: ~10KB per simulation
-- **Total per User**: ~100KB (10 simulations + 10 messages)
-
----
-
-## Monitoring & Logging
-
-### Backend Logs
+### Simulation Generation
 ```
-✓ Loaded 5 Gemini API key(s)
-🚀 NewtonAI backend started
-📊 Using 5 Gemini API key(s) for load balancing
-Using API key #1/5
-📝 Generating simulation for: 'Show me a bouncing ball...'
-✓ Generated: 'Bouncing Ball' (mode=1)
+User Prompt
+  ↓
+POST /generate
+  ↓
+Stage 1: Physics Reasoning (Gemini/Bedrock)
+  ↓
+Complexity Check (STATUS:0-4)
+  ↓
+If rejected → Return 400 error
+  ↓
+Stage 2: JSON Encoding (Gemini/Bedrock)
+  ↓
+Extract JSON
+  ↓
+If malformed → Stage 3 correction
+  ↓
+Stage 3: Validation (Pydantic)
+  ↓
+If errors → Auto-correction (Gemini/Bedrock)
+  ↓
+Post-validation complexity check
+  ↓
+Save to DynamoDB
+  ↓
+Return simulation JSON
+  ↓
+Frontend: Render 3D scene
 ```
 
-### Frontend Console
+### Chat Interaction
 ```
-Session ID: uuid-1234
-Simulation added to history
-Chat message sent
-Chat response received
+User Question
+  ↓
+POST /chat
+  ↓
+Retrieve last 5 messages (DynamoDB)
+  ↓
+Call Gemini with history
+  ↓
+Generate answer
+  ↓
+Save to DynamoDB
+  ↓
+Return answer
 ```
 
-### Health Check
+## Logging Architecture
+
+### Request Tracking
+- **Request ID**: 8-char UUID for each request
+- **Format**: `[request_id] LEVEL Message`
+- **Timestamps**: ISO 8601 UTC
+- **Stage Durations**: Logged for each stage
+
+### Startup Banner
+```
+================================================================================
+🚀 NewtonAI Backend Starting
+================================================================================
+Environment: Production
+Gemini Model: gemini-3-flash-preview
+Gemini API Keys: 3 loaded
+Bedrock Fallback: Enabled
+Bedrock Available: Yes
+DynamoDB Available: Yes
+Debug Mode: OFF
+================================================================================
+```
+
+### CloudWatch Integration
+- **Log Group**: `/aws/lambda/newtonai-backend`
+- **Retention**: 30 days
+- **Format**: Structured for parsing
+- **Metrics**: Custom metrics for monitoring
+
+## Deployment
+
+### Local Development
 ```bash
-curl http://localhost:8000/health
+# Backend
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+
+# Frontend
+cd frontend
+npm install
+npm run dev
+```
+
+### AWS Lambda Production
+```bash
+# Backend
+cd backend
+zip -r deployment.zip .
+aws lambda update-function-code \
+  --function-name newtonai \
+  --zip-file fileb://deployment.zip
+
+# Frontend
+cd frontend
+npm run build
+aws s3 sync dist/ s3://newtonai-frontend
+aws cloudfront create-invalidation \
+  --distribution-id XXXXX \
+  --paths "/*"
+```
+
+### Environment Variables
+```bash
+# Required
+GEMINI_API_KEY_1=...
+GEMINI_API_KEY_2=...
+
+# Optional
+USE_BEDROCK_FALLBACK=true
+AWS_REGION=us-east-1
+DYNAMO_TABLE_NAME=newton_ai_sessions
+DEBUG_MODE=false
+```
+
+## Security
+
+### API Key Management
+- Store in AWS Secrets Manager (production)
+- Environment variables (development)
+- Never log full keys
+- Rotate every 90 days
+
+### Input Validation
+- Max prompt: 500 chars
+- Min prompt: 3 chars
+- Sanitize special characters
+- Reject malicious patterns
+
+### CORS Configuration
+```python
+allow_origins=["https://newtonai.com"]
+allow_credentials=True
+allow_methods=["GET", "POST"]
+allow_headers=["Content-Type"]
+```
+
+## Performance
+
+### Target Metrics
+- **Generation Time**: 60-90 seconds average
+- **Success Rate**: >95%
+- **Concurrent Users**: 10+ (auto-scaling)
+- **API Response**: <5 seconds (health check)
+
+### Optimization
+- No history in generation (saves 60-120s)
+- Round-robin load balancing
+- Efficient token limits
+- Automatic Bedrock fallback
+
+## Monitoring
+
+### Health Endpoint
+```bash
+GET /health
+
+Response:
 {
-  "status": "ok",
-  "model": "gemini-2.0-flash-exp",
-  "api_keys_loaded": 5
+    "status": "ok",
+    "model": "gemini-3-flash-preview",
+    "api_keys_loaded": 3,
+    "failed_keys": 0,
+    "bedrock_fallback_enabled": true,
+    "bedrock_available": true,
+    "debug_mode": false
 }
 ```
 
----
+### CloudWatch Metrics
+- Generation duration (by stage)
+- Error rate (by type)
+- API key failures
+- Bedrock fallback usage
+- Request count
 
-## Deployment Architecture
+### Alarms
+- High error rate (>5%)
+- Slow generation (>120s)
+- All keys failed
+- Bedrock usage spike
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                      Production Setup                        │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  Frontend (Vercel/Netlify)                                  │
-│  ├── Static files (HTML, JS, CSS)                           │
-│  ├── CDN distribution                                        │
-│  └── Environment: VITE_API_URL                              │
-│                                                              │
-│  Backend (Railway/Render/Fly.io)                            │
-│  ├── FastAPI application                                    │
-│  ├── Environment: GEMINI_API_KEY_1-5                        │
-│  └── HTTPS enabled                                          │
-│                                                              │
-│  Database (Optional - Supabase/MongoDB Atlas)               │
-│  ├── Session storage                                        │
-│  ├── User data                                              │
-│  └── Analytics                                              │
-│                                                              │
-│  External APIs                                              │
-│  └── Google AI Studio (Gemini)                             │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
-```
+## Scalability
 
----
+### Horizontal Scaling
+- Lambda: Auto-scales to 1000+ executions
+- DynamoDB: On-demand capacity
+- CloudFront: Global CDN
+- API Gateway: Unlimited requests
+
+### Cost Optimization
+- Gemini free tier: $0
+- Bedrock: Pay per use
+- Lambda: Free tier covers development
+- DynamoDB: On-demand pricing
+
+## Technology Decisions
+
+### Why FastAPI?
+- Modern Python framework
+- Automatic OpenAPI docs
+- Async support
+- Pydantic validation
+- Easy Lambda deployment
+
+### Why Gemini + Bedrock?
+- Gemini: Free tier, fast, good quality
+- Bedrock: High availability fallback
+- Automatic failover
+- Cost-effective
+
+### Why Three.js + Rapier?
+- Three.js: Industry standard 3D
+- Rapier: Fast WebAssembly physics
+- React Three Fiber: React integration
+- Good documentation
 
 ## Future Enhancements
 
-### Short-term
-- [ ] Persistent session storage (Redis)
-- [ ] User authentication
-- [ ] Rate limiting per user
-- [ ] Error recovery & retry logic
+### Phase 2
+- Redis caching layer
+- WebSocket for real-time updates
+- Multi-region deployment
+- Advanced rate limiting
 
-### Medium-term
-- [ ] Analytics dashboard
-- [ ] Export simulation as link
-- [ ] Voice input for chat
-- [ ] Multi-language support
-
-### Long-term
-- [ ] Mobile app (React Native)
-- [ ] VR/AR integration
-- [ ] Collaborative simulations
-- [ ] Custom physics engines
+### Phase 3
+- Microservices architecture
+- Kubernetes deployment
+- GraphQL API
+- Real-time collaboration
+- Mobile app backend

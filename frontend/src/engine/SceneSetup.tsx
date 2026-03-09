@@ -1,5 +1,6 @@
 import { Environment, Grid, GizmoHelper, GizmoViewport, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
+import * as THREE from 'three';
 import type { Environment as EnvConfig } from '../types/physics';
 
 const BG_MAP: Record<string, string> = {

@@ -26,6 +26,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# Lambda deployment files
+backend/package/
+backend/newton_ai.zip
+*.zip
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

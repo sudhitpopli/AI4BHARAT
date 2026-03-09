@@ -4,8 +4,9 @@ import { OrbitControls, Html } from '@react-three/drei';
 import { PhysicsWorld } from './engine/PhysicsWorld';
 import { Mode2World } from './engine/mode2/Mode2World';
 import { ControlPanel } from './components/ControlPanel';
-import { DOUBLE_PENDULUM, EM_RADIATION } from './demos/mode2Demos';
+import { EM_RADIATION, DOUBLE_PENDULUM } from './demos/mode2Demos';
 import SCENARIO_DIPOLE from './demos/scenario_dipole.json';
+import { API_BASE_URL } from './config';
 import type { PhysicsSchema } from './types/physics';
 import type { Mode2Schema } from './types/physics_mode2';
 
@@ -117,20 +118,110 @@ function LandingPage({
 }) {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [error, setError] = useState<{
+    title: string;
+    message: string;
+    suggestion?: string;
+  } | null>(null);
+
+  // Timer effect for elapsed time
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (loading) {
+      const startTime = Date.now();
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+    } else {
+      setElapsedTime(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [loading]);
 
   const handleSubmit = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
+    setError(null);
+    
     try {
       const sessionId = localStorage.getItem('newton_session_id');
-      const res = await fetch('http://localhost:8000/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          prompt: prompt.trim(),
-          session_id: sessionId 
-        }),
-      });
+      
+      // Create AbortController for 5-minute timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes
+      
+      try {
+        const res = await fetch(`${API_BASE_URL}/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            prompt: prompt.trim(),
+            session_id: sessionId 
+          }),
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        
+        // Handle structured error responses
+        if (errorData.detail?.error) {
+          const errorType = errorData.detail.error;
+          
+          if (errorType === 'out_of_scope') {
+            setError({
+              title: "Out of Scope",
+              message: errorData.detail.message,
+              suggestion: errorData.detail.suggestion
+            });
+          } else if (errorType === 'too_complex') {
+            setError({
+              title: "Too Complex",
+              message: errorData.detail.message,
+              suggestion: errorData.detail.suggestion
+            });
+          } else if (errorType === 'invalid_response') {
+            setError({
+              title: "Invalid Response",
+              message: errorData.detail.message,
+              suggestion: errorData.detail.suggestion
+            });
+          } else if (errorType === 'api_failure') {
+            setError({
+              title: "Connection Error",
+              message: errorData.detail.message,
+              suggestion: "Please check your internet connection and try again."
+            });
+          } else if (errorType === 'validation_failure') {
+            setError({
+              title: "Validation Error",
+              message: errorData.detail.message,
+              suggestion: "Try a different prompt or one of the examples below."
+            });
+          } else {
+            setError({
+              title: "Error",
+              message: errorData.detail.message || "Something went wrong.",
+              suggestion: errorData.detail.suggestion
+            });
+          }
+        } else {
+          // Fallback for non-structured errors
+          setError({
+            title: "Error",
+            message: typeof errorData.detail === 'string' ? errorData.detail : "Something went wrong. Please try again.",
+            suggestion: "Try a simpler prompt like 'bouncing ball' or 'pendulum'"
+          });
+        }
+        return;
+      }
+      
       const data = await res.json();
       
       // Store session ID
@@ -140,9 +231,29 @@ function LandingPage({
       
       // Pass the simulation data
       onGenerate(data.simulation);
-    } catch {
-      // Fallback: just load the first demo
-      onSelectDemo(DEMO_SCHEMA);
+      
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
+      }
+      
+    } catch (err) {
+      console.error('Request failed:', err);
+      
+      // Check if it's a timeout error
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError({
+          title: "Request Timeout",
+          message: "The simulation is taking longer than expected (>5 minutes).",
+          suggestion: "Try a simpler prompt or check your internet connection."
+        });
+      } else {
+        setError({
+          title: "Network Error",
+          message: "Could not connect to server. Please check your connection.",
+          suggestion: "Make sure the backend server is running on port 8000."
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -196,7 +307,7 @@ function LandingPage({
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="What physics would you like to simulate? (e.g., 'Show me electron drift in copper')"
+            placeholder="What physics would you like to simulate? (e.g., 'bouncing ball', 'simple pendulum', 'charged particles')"
             rows={3}
             className="w-full bg-transparent text-white/90 placeholder-slate-500 p-5 text-base resize-none focus:outline-none leading-relaxed"
             onKeyDown={(e) => {
@@ -208,10 +319,73 @@ function LandingPage({
           />
         </div>
 
+        {/* Example prompts */}
+        <div className="mt-3 flex flex-wrap gap-2 justify-center max-w-2xl">
+          <button
+            onClick={() => setPrompt('bouncing ball')}
+            className="px-3 py-1.5 text-xs rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+          >
+            Bouncing Ball
+          </button>
+          <button
+            onClick={() => setPrompt('simple pendulum')}
+            className="px-3 py-1.5 text-xs rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+          >
+            Simple Pendulum
+          </button>
+          <button
+            onClick={() => setPrompt('ball rolling down ramp')}
+            className="px-3 py-1.5 text-xs rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+          >
+            Rolling Ball
+          </button>
+          <button
+            onClick={() => setPrompt('two charged particles')}
+            className="px-3 py-1.5 text-xs rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+          >
+            Charged Particles
+          </button>
+        </div>
+
         {loading && (
-          <div className="mt-6 flex items-center gap-3 text-cyan-400/80">
-            <div className="w-5 h-5 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
-            <span className="text-sm font-medium">Generating simulation…</span>
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <div className="flex items-center gap-3 text-cyan-400/80">
+              <div className="w-5 h-5 border-2 border-cyan-500/30 border-t-cyan-400 rounded-full animate-spin" />
+              <span className="text-sm font-medium">Generating simulation…</span>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-slate-400">
+              <span>Elapsed: <span className="text-cyan-400 font-mono">{elapsedTime}s</span></span>
+              <span className="text-slate-600">•</span>
+              <span>Average: <span className="text-slate-300 font-mono">~60-90s</span></span>
+            </div>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-4 max-w-2xl w-full p-4 rounded-lg bg-red-900/20 border border-red-500/30 backdrop-blur-sm">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-red-300 mb-1">{error.title}</h4>
+                <p className="text-sm text-red-200/80 mb-2">{error.message}</p>
+                {error.suggestion && (
+                  <p className="text-xs text-red-300/70 italic mt-2 bg-red-900/20 p-2 rounded border border-red-500/20">
+                    💡 {error.suggestion}
+                  </p>
+                )}
+              </div>
+              <button 
+                onClick={() => setError(null)}
+                className="text-red-400 hover:text-red-300 transition-colors"
+                title="Dismiss"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -236,9 +410,25 @@ function SimulationView({
   const [enableGlow, setEnableGlow] = useState(true);
   const [enableTrail, setEnableTrail] = useState(false);
 
+  // Detect if a parameter is an initial condition that requires reset
+  const isInitialCondition = useCallback((param: string): boolean => {
+    return (
+      param.includes('initial_velocity') ||
+      param.includes('position.x') ||
+      param.includes('position.y') ||
+      param.includes('position.z') ||
+      param.includes('rotation_deg')
+    );
+  }, []);
+
   const handleControl = useCallback((param: string, value: number) => {
     setOverrides((prev) => ({ ...prev, [param]: value }));
-  }, []);
+    
+    // Auto-reset if this is an initial condition
+    if (isInitialCondition(param)) {
+      setSimKey((k) => k + 1);
+    }
+  }, [isInitialCondition]);
 
   const handleReset = useCallback(() => {
     setOverrides({});
@@ -250,7 +440,7 @@ function SimulationView({
       {/* ── Full-screen 3D Canvas ── */}
       <Canvas
         key={simKey}
-        shadows
+        shadows="percentage"
         className="!absolute inset-0"
         camera={{
           position: [

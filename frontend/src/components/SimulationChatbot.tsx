@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
+import { X, Send, User, Bot, Loader2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -40,7 +42,7 @@ export function SimulationChatbot({ simulationId, isOpen, onClose }: SimulationC
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:8000/chat', {
+      const res = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

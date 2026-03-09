@@ -16,7 +16,7 @@ interface Props {
 
 /** Resolve dot-notation path on schema to get a value */
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-    return path.split('.').reduce((acc, key) => (acc as Record<string, unknown>)?.[key], obj);
+    return path.split('.').reduce<any>((acc, key) => (acc as any)?.[key], obj);
 }
 
 /** Deep clone + apply control overrides to a schema copy */
@@ -26,25 +26,46 @@ function applyOverrides(schema: PhysicsSchema, overrides: Record<string, number>
         const parts = param.split('.');
         // Environment overrides
         if (parts[0] === 'environment') {
-            let target: Record<string, unknown> = clone.environment as unknown as Record<string, unknown>;
-            for (let i = 1; i < parts.length - 1; i++) target = target[parts[i]] as Record<string, unknown>;
-            target[parts[parts.length - 1]] = val;
+            let target: any = clone.environment;
+            for (let i = 1; i < parts.length - 1; i++) {
+                if (target && target[parts[i]] !== undefined) {
+                    target = target[parts[i]];
+                } else {
+                    target = null;
+                    break;
+                }
+            }
+            if (target) target[parts[parts.length - 1]] = val;
             continue;
         }
         // Object / link overrides (first part is the id)
         const id = parts[0];
-        const obj = (clone.objects as unknown as Array<Record<string, unknown>>).find((o) => o.id === id);
+        const obj = (clone.objects as unknown as Array<Record<string, any>>).find((o) => o.id === id);
         if (obj) {
-            let target: Record<string, unknown> = obj;
-            for (let i = 1; i < parts.length - 1; i++) target = target[parts[i]] as Record<string, unknown>;
-            target[parts[parts.length - 1]] = val;
+            let target: any = obj;
+            for (let i = 1; i < parts.length - 1; i++) {
+                if (target && target[parts[i]] !== undefined) {
+                    target = target[parts[i]];
+                } else {
+                    target = null;
+                    break;
+                }
+            }
+            if (target) target[parts[parts.length - 1]] = val;
             continue;
         }
-        const link = (clone.links as unknown as Array<Record<string, unknown>>).find((l) => l.id === id);
+        const link = (clone.links as unknown as Array<Record<string, any>>).find((l) => l.id === id);
         if (link) {
-            let target: Record<string, unknown> = link;
-            for (let i = 1; i < parts.length - 1; i++) target = target[parts[i]] as Record<string, unknown>;
-            target[parts[parts.length - 1]] = val;
+            let target: any = link;
+            for (let i = 1; i < parts.length - 1; i++) {
+                if (target && target[parts[i]] !== undefined) {
+                    target = target[parts[i]];
+                } else {
+                    target = null;
+                    break;
+                }
+            }
+            if (target) target[parts[parts.length - 1]] = val;
         }
     }
     return clone;
@@ -53,15 +74,16 @@ function applyOverrides(schema: PhysicsSchema, overrides: Record<string, number>
 export function PhysicsWorld({ schema: baseSchema, controlOverrides, enableGlow = true, enableTrail = false }: Props) {
     const schema = useMemo(() => applyOverrides(baseSchema, controlOverrides), [baseSchema, controlOverrides]);
 
-    // Create a key for properties that require full remount (material properties, geometry)
-    // This includes: restitution, friction, density, radius, width, height, depth, length
+    // Create a key for properties that require full remount (material properties, geometry, initial conditions)
+    // This includes: restitution, friction, density, radius, width, height, depth, length, initial_velocity
     const remountKey = useMemo(() => {
         const criticalProps: string[] = [];
         Object.entries(controlOverrides).forEach(([param, value]) => {
             // Check if this is a property that requires remount
             if (param.includes('material.') || param.includes('radius') || 
                 param.includes('width') || param.includes('height') || 
-                param.includes('depth') || param.includes('length')) {
+                param.includes('depth') || param.includes('length') ||
+                param.includes('initial_velocity') || param.includes('rotation_deg')) {
                 criticalProps.push(`${param}:${value}`);
             }
         });
@@ -71,7 +93,7 @@ export function PhysicsWorld({ schema: baseSchema, controlOverrides, enableGlow 
     // Create stable refs keyed by object id
     // Recreate refs when remountKey changes to ensure fresh references after remount
     const refs = useMemo(() => {
-        const m: Record<string, React.RefObject<RapierRigidBody>> = {};
+        const m: Record<string, React.RefObject<any>> = {};
         schema.objects.forEach((o) => { m[o.id] = createRef<RapierRigidBody>(); });
         return m;
     }, [schema.objects.map((o) => o.id).join(','), remountKey]);

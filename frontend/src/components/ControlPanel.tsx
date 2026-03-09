@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { Control } from '../types/physics';
+import type { Mode2Schema } from '../types/physics_mode2';
+import { API_BASE_URL } from '../config';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -53,7 +55,7 @@ export function ControlPanel({ controls, values, onChange, onReset, simulationId
         setLoading(true);
 
         try {
-            const res = await fetch('http://localhost:8000/chat', {
+            const res = await fetch(`${API_BASE_URL}/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
