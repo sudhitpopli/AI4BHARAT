@@ -15,8 +15,9 @@ interface Props {
 }
 
 /** Resolve dot-notation path on schema to get a value */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-    return path.split('.').reduce<any>((acc, key) => (acc as any)?.[key], obj);
+    return path.split('.').reduce((acc: any, key) => acc?.[key], obj as any);
 }
 
 /** Deep clone + apply control overrides to a schema copy */
@@ -93,7 +94,7 @@ export function PhysicsWorld({ schema: baseSchema, controlOverrides, enableGlow 
     // Create stable refs keyed by object id
     // Recreate refs when remountKey changes to ensure fresh references after remount
     const refs = useMemo(() => {
-        const m: Record<string, React.RefObject<any>> = {};
+        const m: Record<string, React.RefObject<RapierRigidBody | null>> = {};
         schema.objects.forEach((o) => { m[o.id] = createRef<RapierRigidBody>(); });
         return m;
     }, [schema.objects.map((o) => o.id).join(','), remountKey]);
